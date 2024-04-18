@@ -148,28 +148,6 @@ class Band:
         return self.format()
 
 
-def round_reading(value: float, step: float = 1.0) -> float:
-    """Round a reading to a step, half away from zero.
-
-    Python's built in ``round`` is half to even, which is right for statistics
-    and wrong for a chart recorder: an operator writing 1552.5 down as 1552 one
-    time and 1553 the next cannot be reconciled against a printed trace.
-    """
-    if step <= 0:
-        raise ValidationError("rounding step must be positive", field="step")
-    scaled = value / step
-    if scaled >= 0:
-        rounded = float(int(scaled + 0.5 + _EPS))
-    else:
-        rounded = -float(int(-scaled + 0.5 + _EPS))
-    return rounded * step
-
-
-def round_temperature(reading: Temperature, step: float = 1.0) -> Temperature:
-    """Apply :func:`round_reading` to a temperature, keeping its scale."""
-    return Temperature(round_reading(reading.value, step), reading.scale)
-
-
 def band_from_spec(setpoint: Temperature, spec: str) -> Band:
     """Read a written tolerance such as ``+/-10``, ``+25/-0`` or ``+0/-15``."""
     text = spec.strip().replace(" ", "")

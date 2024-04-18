@@ -10,6 +10,7 @@ from quenchline.temperature import (
     coerce_scale,
     degc,
     degf,
+    round_temperature,
 )
 
 
@@ -165,3 +166,19 @@ def test_coerce_scale_breaks_a_tie_toward_fahrenheit() -> None:
 def test_coerce_scale_refuses_an_empty_list() -> None:
     with pytest.raises(ValidationError):
         coerce_scale([])
+
+
+def test_round_temperature_goes_half_away_from_zero() -> None:
+    assert round_temperature(Temperature.fahrenheit(1552.5)).value == pytest.approx(1553.0)
+    assert round_temperature(Temperature.fahrenheit(1551.5)).value == pytest.approx(1552.0)
+
+
+def test_round_temperature_honours_a_step_and_keeps_the_scale() -> None:
+    rounded = round_temperature(Temperature.celsius(843.33), 0.5)
+    assert rounded.scale is Scale.CELSIUS
+    assert rounded.value == pytest.approx(843.5)
+
+
+def test_round_temperature_refuses_a_zero_step() -> None:
+    with pytest.raises(ValidationError):
+        round_temperature(Temperature.fahrenheit(1550), 0.0)

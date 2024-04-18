@@ -229,3 +229,20 @@ def coerce_scale(values: list[Temperature]) -> Scale:
         raise ValidationError("no temperatures to coerce", field="values")
     fahrenheit = sum(1 for v in values if v.scale is Scale.FAHRENHEIT)
     return Scale.FAHRENHEIT if fahrenheit * 2 >= len(values) else Scale.CELSIUS
+
+
+def round_temperature(reading: Temperature, step: float = 1.0) -> Temperature:
+    """Round a temperature to a step, keeping its scale.
+
+    Half away from zero, not Python's half to even: an operator writing 1552.5
+    down as 1552 one time and 1553 the next cannot be reconciled against a
+    printed chart.
+    """
+    if step <= 0:
+        raise ValidationError("rounding step must be positive", field="step")
+    scaled = reading.value / step
+    if scaled >= 0:
+        rounded = float(int(scaled + 0.5 + 1e-9))
+    else:
+        rounded = -float(int(-scaled + 0.5 + 1e-9))
+    return Temperature(rounded * step, reading.scale)

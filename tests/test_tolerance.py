@@ -4,13 +4,7 @@ import pytest
 
 from quenchline.errors import ValidationError
 from quenchline.temperature import Scale, Temperature, degc, degf
-from quenchline.tolerance import (
-    Band,
-    Position,
-    band_from_spec,
-    round_reading,
-    round_temperature,
-)
+from quenchline.tolerance import Band, Position, band_from_spec
 
 SETPOINT = Temperature.fahrenheit(1550)
 
@@ -121,28 +115,6 @@ def test_overlaps_is_symmetric_and_closed() -> None:
 def test_band_formatting() -> None:
     assert Band.symmetric(SETPOINT, degf(25)).format() == "1550 F +/-25"
     assert Band(SETPOINT, degf(0), degf(25)).format() == "1550 F +25 -0"
-
-
-def test_round_reading_goes_half_away_from_zero() -> None:
-    assert round_reading(1552.5) == pytest.approx(1553.0)
-    assert round_reading(1551.5) == pytest.approx(1552.0)
-    assert round_reading(-1552.5) == pytest.approx(-1553.0)
-
-
-def test_round_reading_honours_a_step() -> None:
-    assert round_reading(1552.5, 5.0) == pytest.approx(1555.0)
-    assert round_reading(1552.4, 0.5) == pytest.approx(1552.5)
-
-
-def test_round_reading_refuses_a_zero_step() -> None:
-    with pytest.raises(ValidationError):
-        round_reading(1550.0, 0.0)
-
-
-def test_round_temperature_keeps_the_scale() -> None:
-    rounded = round_temperature(Temperature.celsius(843.33), 1.0)
-    assert rounded.scale is Scale.CELSIUS
-    assert rounded.value == pytest.approx(843.0)
 
 
 def test_band_from_spec_reads_a_symmetric_tolerance() -> None:

@@ -8,6 +8,7 @@ from quenchline.numeric import (
     Extrapolation,
     mean,
     median,
+    round_reading,
     sample_stdev,
     slope,
     spread,
@@ -123,3 +124,19 @@ def test_slope_validation() -> None:
         slope([1.0, 2.0], [1.0])
     with pytest.raises(ValidationError):
         slope([1.0, 1.0], [1.0, 2.0])
+
+
+def test_round_reading_goes_half_away_from_zero() -> None:
+    assert round_reading(1552.5) == pytest.approx(1553.0)
+    assert round_reading(1551.5) == pytest.approx(1552.0)
+    assert round_reading(-1552.5) == pytest.approx(-1553.0)
+
+
+def test_round_reading_honours_a_step() -> None:
+    assert round_reading(1552.5, 5.0) == pytest.approx(1555.0)
+    assert round_reading(1552.4, 0.5) == pytest.approx(1552.5)
+
+
+def test_round_reading_refuses_a_zero_step() -> None:
+    with pytest.raises(ValidationError):
+        round_reading(1550.0, 0.0)
