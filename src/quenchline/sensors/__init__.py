@@ -1,5 +1,6 @@
 """Thermocouples, their calibration and their usable life."""
 
+from .calibration import CalibrationPoint, Certificate, Convention
 from .types import (
     JunctionClass,
     ThermocoupleType,
@@ -8,6 +9,9 @@ from .types import (
 )
 
 __all__ = [
+    "CalibrationPoint",
+    "Certificate",
+    "Convention",
     "JunctionClass",
     "ThermocoupleType",
     "ToleranceClass",
