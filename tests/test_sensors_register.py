@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from quenchline.errors import ConflictError, NotFoundError, ValidationError
+from quenchline.errors import ConflictError, NotFoundError
 from quenchline.identity import SensorTag
 from quenchline.sensors.calibration import Certificate, Convention
 from quenchline.sensors.record import (
@@ -18,7 +18,6 @@ from quenchline.sensors.register import (
     SensorRegister,
     build_register,
     calibration_interval,
-    require_tag,
     requires_certificate,
 )
 from quenchline.sensors.types import ThermocoupleType, ToleranceClass
@@ -233,9 +232,3 @@ def test_eligible_filters_the_whole_register() -> None:
     assert [str(c.tag) for c in register.eligible(SensorRole.SURVEY, WORKING, TODAY)] == [
         "TC-00001"
     ]
-
-
-def test_require_tag_rejects_serial_zero() -> None:
-    assert str(require_tag("TC-1")) == "TC-00001"
-    with pytest.raises(ValidationError):
-        require_tag("TC-0")

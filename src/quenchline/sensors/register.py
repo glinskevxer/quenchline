@@ -24,7 +24,7 @@ from datetime import date
 from enum import Enum
 
 from ..calendar_rules import Interval
-from ..errors import ConflictError, NotFoundError, ValidationError
+from ..errors import ConflictError, NotFoundError
 from ..identity import SensorTag
 from ..temperature import Temperature
 from .record import Construction, SensorRole, SensorStatus, Thermocouple
@@ -194,10 +194,3 @@ def build_register(couples: list[Thermocouple]) -> SensorRegister:
     for couple in couples:
         register.add(couple)
     return register
-
-
-def require_tag(text: str) -> SensorTag:
-    tag = SensorTag.parse(text)
-    if tag.serial == 0:
-        raise ValidationError("serial zero is reserved", field="tag")
-    return tag

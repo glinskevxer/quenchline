@@ -11,6 +11,7 @@ from quenchline.identity import (
     SensorTag,
     WorkOrder,
     normalise_code,
+    require_sensor_tag,
 )
 
 
@@ -121,3 +122,11 @@ def test_work_order_bounds() -> None:
         WorkOrder(1, 0)
     with pytest.raises(ParseError):
         WorkOrder.parse("104417")
+
+
+def test_require_sensor_tag_rejects_the_reserved_serial() -> None:
+    assert str(require_sensor_tag("tc-1")) == "TC-00001"
+    with pytest.raises(ValidationError):
+        require_sensor_tag("TC-0")
+    with pytest.raises(ValidationError):
+        require_sensor_tag("HT-04")

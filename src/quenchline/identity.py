@@ -158,3 +158,11 @@ class WorkOrder:
         if self.split is None:
             return f"W{self.serial:06d}"
         return f"W{self.serial:06d}-{self.split}"
+
+
+def require_sensor_tag(text: str) -> SensorTag:
+    """Parse a sensor tag and refuse the serial the shop keeps for scrap wire."""
+    tag = SensorTag.parse(text)
+    if tag.serial == 0:
+        raise ValidationError("serial zero is reserved for uncontrolled wire", field="tag")
+    return tag
