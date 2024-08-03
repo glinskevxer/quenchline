@@ -30,7 +30,7 @@ def reading(
     )
 
 
-def test(**changes: object) -> SatTest:
+def sat(**changes: object) -> SatTest:
     base: dict[str, object] = {
         "number": "SAT-2407-04",
         "furnace": FURNACE,
@@ -56,7 +56,7 @@ def test_a_reading_can_be_taken_raw() -> None:
 
 
 def test_the_difference_is_system_minus_test() -> None:
-    t = test()
+    t = sat()
     assert t.system_value.degf == pytest.approx(1549.5)
     assert t.test_value.degf == pytest.approx(1551.0)
     assert t.difference.degf == pytest.approx(-1.5)
@@ -64,20 +64,20 @@ def test_the_difference_is_system_minus_test() -> None:
 
 
 def test_a_furnace_reading_high_is_a_positive_difference() -> None:
-    t = test(system=reading(1556.0, 0.0, 0.0, "TC-01"))
+    t = sat(system=reading(1556.0, 0.0, 0.0, "TC-01"))
     assert t.difference.degf == pytest.approx(5.0)
     assert t.reads_high
 
 
 def test_corrections_can_be_turned_off_and_the_answer_moves() -> None:
-    corrected = test()
+    corrected = sat()
     raw = corrected.with_corrections(apply_corrections=False)
     assert corrected.difference.degf == pytest.approx(-1.5)
     assert raw.difference.degf == pytest.approx(-1.0)
 
 
 def test_applying_corrections_to_one_side_only_would_hide_a_double_fault() -> None:
-    both_drifting = test(
+    both_drifting = sat(
         system=reading(1550.0, 3.0, 3.0, "TC-01"),
         test=reading(1550.0, 0.0, 0.0, "TC-99"),
     )
@@ -88,25 +88,25 @@ def test_applying_corrections_to_one_side_only_would_hide_a_double_fault() -> No
 
 
 def test_offset_from_setpoint_uses_the_test_side() -> None:
-    t = test(test=reading(1543.0, 0.0, 0.0, "TC-99"))
+    t = sat(test=reading(1543.0, 0.0, 0.0, "TC-99"))
     assert t.offset_from_setpoint.degf == pytest.approx(-7.0)
 
 
 def test_a_blank_number_is_refused() -> None:
     with pytest.raises(ValidationError):
-        test(number="  ")
+        sat(number="  ")
 
 
 def test_a_probe_test_needs_the_test_sensor_named() -> None:
     with pytest.raises(ValidationError):
-        test(test=reading(1551.0, 0.0, 0.0))
+        sat(test=reading(1551.0, 0.0, 0.0))
 
 
 def test_the_alternate_method_needs_no_test_sensor() -> None:
-    t = test(method=SatMethod.ALTERNATE, test=reading(1551.0, 0.0, 0.0))
+    t = sat(method=SatMethod.ALTERNATE, test=reading(1551.0, 0.0, 0.0))
     assert t.method is SatMethod.ALTERNATE
     assert not t.method.needs_a_test_sensor
 
 
 def test_string_form_names_the_furnace_and_setpoint() -> None:
-    assert str(test()) == "SAT-2407-04 on HT-04 at 1550 F"
+    assert str(sat()) == "SAT-2407-04 on HT-04 at 1550 F"
