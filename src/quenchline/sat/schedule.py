@@ -18,7 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from ..calendar_rules import DueRule, Interval, days_until, is_overdue
+from ..calendar_rules import DueRule, Interval, days_until, due_date, is_overdue
 from ..errors import ValidationError
 from ..furnaces.classes import FurnaceClass, InstrumentationType, sat_interval
 from ..identity import FurnaceTag
@@ -106,11 +106,7 @@ class SatHistory:
         if latest is None:
             return SatDue(self.furnace, None, None, None, True, interval)
         performed = latest.test.performed
-        due_on = interval.after(performed)
-        if rule is DueRule.END_OF_MONTH:
-            due_on = date(due_on.year, due_on.month, 1)
-            due_on = Interval.months(1).after(due_on)
-            due_on = date(due_on.year, due_on.month, 1)
+        due_on = due_date(performed, interval, rule)
         return SatDue(
             self.furnace,
             performed,
