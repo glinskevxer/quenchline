@@ -63,17 +63,29 @@ class Overshoot:
 
 @dataclass(frozen=True)
 class Stabilization:
-    """What happened between the clock starting and the survey ending."""
+    """What happened between the clock starting and the survey ending.
+
+    Two clocks, not one. ``started_at`` is the first sensor into the band and it
+    is what the overshoot rule hangs off. ``all_in_at`` is the moment the whole
+    zone was inside the band at once, and it is what the soak is measured from,
+    because a soak that starts before the cold corner arrived is not a soak.
+    """
 
     started_at: Duration | None
     first_sensor: str | None
     overshoots: tuple[Overshoot, ...]
     recovered: bool
     soak_time: Duration
+    all_in_at: Duration | None = None
+    uniform_soak: Duration = Duration(0.0)
 
     @property
     def started(self) -> bool:
         return self.started_at is not None
+
+    @property
+    def all_in(self) -> bool:
+        return self.all_in_at is not None
 
     @property
     def clean(self) -> bool:
@@ -90,6 +102,14 @@ def first_arrival(data: SurveySetpoint, band: Band) -> tuple[Duration, str] | No
         arrived = [key for key, value in scan.values if value.degf >= band.lower.degf - 1e-9]
         if arrived:
             return (scan.elapsed, sorted(arrived)[0])
+    return None
+
+
+def full_arrival(data: SurveySetpoint, band: Band) -> Duration | None:
+    """The first scan with every sensor inside the band at the same time."""
+    for scan in data.scans:
+        if not scan.is_empty and _all_inside(scan, band):
+            return scan.elapsed
     return None
 
 
@@ -145,7 +165,7 @@ def analyse(
     band = band_for(data.setpoint, tolerance)
     arrival = first_arrival(data, band)
     if arrival is None:
-        return Stabilization(None, None, (), True, Duration(0.0))
+        return Stabilization(None, None, (), True, Duration(0.0), None, Duration(0.0))
     started, sensor = arrival
     overshoots = overshoots_after(data, band, started)
     recovered = (
@@ -154,4 +174,6 @@ def analyse(
         else not overshoots
     )
     soak = data.duration - started
-    return Stabilization(started, sensor, overshoots, recovered, soak)
+    all_in = full_arrival(data, band)
+    uniform = Duration(0.0) if all_in is None else data.duration - all_in
+    return Stabilization(started, sensor, overshoots, recovered, soak, all_in, uniform)

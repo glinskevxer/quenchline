@@ -189,3 +189,32 @@ def test_soak_time_is_measured_from_the_clock_start() -> None:
 def test_a_zero_tolerance_is_refused() -> None:
     with pytest.raises(ValidationError):
         analyse(data(scan(0, {"A": 1550.0})), degf(0))
+
+
+def test_the_soak_clock_waits_for_the_whole_zone() -> None:
+    result = analyse(
+        data(
+            scan(0, {"A": 1400.0, "B": 1400.0}),
+            scan(10, {"A": 1540.0, "B": 1500.0}),
+            scan(20, {"A": 1550.0, "B": 1545.0}),
+            scan(60, {"A": 1550.0, "B": 1548.0}),
+        ),
+        TOLERANCE,
+    )
+    assert result.started_at == minutes(10)
+    assert result.all_in_at == minutes(20)
+    assert result.soak_time == minutes(50)
+    assert result.uniform_soak == minutes(40)
+
+
+def test_a_zone_that_never_came_together_has_no_uniform_soak() -> None:
+    result = analyse(
+        data(
+            scan(0, {"A": 1540.0, "B": 1400.0}),
+            scan(40, {"A": 1550.0, "B": 1450.0}),
+        ),
+        TOLERANCE,
+    )
+    assert result.started
+    assert not result.all_in
+    assert result.uniform_soak == minutes(0)
