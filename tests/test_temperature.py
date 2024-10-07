@@ -109,16 +109,27 @@ def test_adding_a_delta_to_a_temperature_keeps_the_temperature_scale() -> None:
     assert t.value == pytest.approx(1568.0)
 
 
-def test_subtracting_a_delta_gives_a_temperature() -> None:
-    t = Temperature.fahrenheit(1550) - degf(50)
+def test_minus_takes_a_delta_off_and_gives_a_temperature() -> None:
+    t = Temperature.fahrenheit(1550).minus(degf(50))
     assert isinstance(t, Temperature)
     assert t.value == pytest.approx(1500.0)
+
+
+def test_minus_converts_a_delta_on_the_other_scale() -> None:
+    t = Temperature.fahrenheit(1550).minus(degc(10))
+    assert t.scale is Scale.FAHRENHEIT
+    assert t.value == pytest.approx(1532.0)
 
 
 def test_subtracting_a_temperature_gives_a_delta() -> None:
     d = Temperature.fahrenheit(1560) - Temperature.fahrenheit(1550)
     assert isinstance(d, TemperatureDelta)
     assert d.magnitude == pytest.approx(10.0)
+
+
+def test_subtraction_crosses_scales() -> None:
+    d = Temperature.fahrenheit(1553) - Temperature.celsius(845)
+    assert d.magnitude == pytest.approx(0.0)
 
 
 def test_difference_is_signed_and_uses_the_left_scale() -> None:
@@ -182,3 +193,29 @@ def test_round_temperature_honours_a_step_and_keeps_the_scale() -> None:
 def test_round_temperature_refuses_a_zero_step() -> None:
     with pytest.raises(ValidationError):
         round_temperature(Temperature.fahrenheit(1550), 0.0)
+
+
+def test_midpoint_lands_halfway() -> None:
+    middle = Temperature.fahrenheit(1500).midpoint(Temperature.fahrenheit(1600))
+    assert middle.value == pytest.approx(1550.0)
+
+
+def test_midpoint_uses_the_left_scale() -> None:
+    middle = Temperature.celsius(800).midpoint(Temperature.fahrenheit(1652))
+    assert middle.scale is Scale.CELSIUS
+    assert middle.value == pytest.approx(850.0)
+
+
+def test_clamped_pulls_a_reading_inside_the_limits() -> None:
+    low = Temperature.fahrenheit(1500)
+    high = Temperature.fahrenheit(1600)
+    assert Temperature.fahrenheit(1400).clamped(low, high).value == pytest.approx(1500.0)
+    assert Temperature.fahrenheit(1700).clamped(low, high).value == pytest.approx(1600.0)
+    assert Temperature.fahrenheit(1550).clamped(low, high).value == pytest.approx(1550.0)
+
+
+def test_clamped_refuses_inverted_limits() -> None:
+    with pytest.raises(ValidationError):
+        Temperature.fahrenheit(1550).clamped(
+            Temperature.fahrenheit(1600), Temperature.fahrenheit(1500)
+        )

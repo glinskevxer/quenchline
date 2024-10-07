@@ -67,13 +67,26 @@ class Band:
         zero = TemperatureDelta(0.0, setpoint.scale)
         return cls(setpoint, abs(minus), zero)
 
+    @classmethod
+    def from_limits(cls, low: Temperature, high: Temperature) -> Band:
+        """A band described by its two limits rather than by a set point.
+
+        The set point lands in the middle, which is what a customer means by
+        "between 1525 and 1575" even when they never say 1550.
+        """
+        if high.degf < low.degf:
+            raise ValidationError("band limits are the wrong way round", field="limits")
+        setpoint = low.midpoint(high)
+        half = TemperatureDelta((high.degf - low.degf) / 2.0, Scale.FAHRENHEIT)
+        return cls(setpoint, half.to(setpoint.scale), half.to(setpoint.scale))
+
     @property
     def scale(self) -> Scale:
         return self.setpoint.scale
 
     @property
     def lower(self) -> Temperature:
-        return self.setpoint - self.minus  # type: ignore[return-value]
+        return self.setpoint.minus(self.minus)
 
     @property
     def upper(self) -> Temperature:

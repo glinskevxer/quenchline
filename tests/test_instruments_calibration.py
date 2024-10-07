@@ -156,3 +156,21 @@ def test_error_at_finds_a_checked_point() -> None:
     assert found is not None
     assert found.degf == pytest.approx(0.5)
     assert error_at(cal, Temperature.fahrenheit(900)) is None
+
+
+def test_worst_left_picks_the_largest_adjusted_error() -> None:
+    cal = calibration(
+        check(600.0, 605.0, 600.2),
+        check(1000.0, 1006.0, 1001.5),
+        check(1550.0, 1551.0),
+    )
+    worst = cal.worst_left
+    assert worst is not None
+    assert worst.nominal.degf == pytest.approx(1000.0)
+
+
+def test_worst_left_ignores_points_that_were_never_adjusted() -> None:
+    cal = calibration(check(600.0, 609.0), check(1000.0, 1006.0, 1001.5))
+    worst = cal.worst_left
+    assert worst is not None
+    assert worst.nominal.degf == pytest.approx(1000.0)

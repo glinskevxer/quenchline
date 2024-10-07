@@ -133,3 +133,22 @@ def test_band_from_spec_rejects_bad_text() -> None:
     for spec in ("", "10", "+25", "25/-0", "+25/0"):
         with pytest.raises(ValidationError):
             band_from_spec(SETPOINT, spec)
+
+
+def test_a_band_can_be_given_as_two_limits() -> None:
+    band = Band.from_limits(Temperature.fahrenheit(1525), Temperature.fahrenheit(1575))
+    assert band.setpoint.value == pytest.approx(1550.0)
+    assert band.is_symmetric
+    assert band.lower.value == pytest.approx(1525.0)
+    assert band.upper.value == pytest.approx(1575.0)
+
+
+def test_a_lopsided_pair_of_limits_still_centres_the_setpoint() -> None:
+    band = Band.from_limits(Temperature.fahrenheit(1500), Temperature.fahrenheit(1580))
+    assert band.setpoint.value == pytest.approx(1540.0)
+    assert band.width.magnitude == pytest.approx(80.0)
+
+
+def test_inverted_limits_are_refused() -> None:
+    with pytest.raises(ValidationError):
+        Band.from_limits(Temperature.fahrenheit(1575), Temperature.fahrenheit(1525))

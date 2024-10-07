@@ -72,8 +72,7 @@ def range_from(setpoints: tuple[Temperature, ...]) -> QualifiedRange | None:
         return None
     if len(setpoints) == 1:
         only = setpoints[0]
-        low = Temperature(only.value - SINGLE_POINT_MARGIN.to(only.scale).magnitude, only.scale)
-        return QualifiedRange(low, only + SINGLE_POINT_MARGIN)
+        return QualifiedRange(only.minus(SINGLE_POINT_MARGIN), only + SINGLE_POINT_MARGIN)
     return QualifiedRange.spanning(list(setpoints))
 
 

@@ -188,10 +188,19 @@ class Temperature:
     def __add__(self, delta: TemperatureDelta) -> Temperature:
         return Temperature(self.value + delta.to(self.scale).magnitude, self.scale)
 
-    def __sub__(self, other: Temperature | TemperatureDelta) -> Temperature | TemperatureDelta:
-        if isinstance(other, TemperatureDelta):
-            return Temperature(self.value - other.to(self.scale).magnitude, self.scale)
+    def __sub__(self, other: Temperature) -> TemperatureDelta:
+        """Subtracting two temperatures gives the difference between them.
+
+        Taking a delta off a temperature is :meth:`minus`, and it is a separate
+        method on purpose. An operator that returned a temperature for one
+        argument type and a delta for the other made every caller carry a type
+        ignore, and the ignores were hiding real mistakes.
+        """
         return TemperatureDelta(self.value - other.to(self.scale).value, self.scale)
+
+    def minus(self, delta: TemperatureDelta) -> Temperature:
+        """This temperature, ``delta`` degrees colder."""
+        return Temperature(self.value - delta.to(self.scale).magnitude, self.scale)
 
     def difference(self, other: Temperature) -> TemperatureDelta:
         """The signed difference ``self - other`` expressed on ``self``'s scale."""
@@ -208,6 +217,20 @@ class Temperature:
 
     def __ge__(self, other: Temperature) -> bool:
         return self.degf >= other.degf
+
+    def midpoint(self, other: Temperature) -> Temperature:
+        """Halfway between two temperatures, on this one's scale."""
+        return Temperature((self.value + other.to(self.scale).value) / 2.0, self.scale)
+
+    def clamped(self, low: Temperature, high: Temperature) -> Temperature:
+        """This temperature pulled inside a pair of limits."""
+        if low.degf > high.degf:
+            raise ValidationError("limits are the wrong way round", field="limits")
+        if self.degf < low.degf:
+            return low
+        if self.degf > high.degf:
+            return high
+        return self
 
     def close_to(self, other: Temperature, tolerance: TemperatureDelta) -> bool:
         return abs(self.degf - other.degf) <= abs(tolerance.degf) + 1e-9

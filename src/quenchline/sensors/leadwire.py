@@ -123,7 +123,7 @@ class ColdJunction:
         return abs(self.error.degf) < 0.5
 
     def correct(self, indicated: Temperature) -> Temperature:
-        return indicated - self.error  # type: ignore[return-value]
+        return indicated.minus(self.error)
 
 
 def combined_offset(

@@ -98,10 +98,16 @@ class InstrumentCalibration:
 
     @property
     def worst_left(self) -> CalibrationCheck | None:
-        rated = [c for c in self.checks if c.left_error is not None]
-        if not rated:
-            return None
-        return max(rated, key=lambda c: abs(c.left_error.degf))  # type: ignore[union-attr]
+        worst: CalibrationCheck | None = None
+        largest = -1.0
+        for check in self.checks:
+            error = check.left_error
+            if error is None:
+                continue
+            if abs(error.degf) > largest:
+                largest = abs(error.degf)
+                worst = check
+        return worst
 
     def as_found_passed(self) -> bool:
         limit = abs(self.tolerance.degf) + 1e-9
