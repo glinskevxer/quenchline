@@ -162,3 +162,10 @@ def test_a_junk_reading_is_refused() -> None:
 
 def test_the_profile_reports_its_keys() -> None:
     assert profile().keys == ("C1", "L1")
+
+
+def test_dropout_markers_are_stored_lower_cased() -> None:
+    p = profile(dropout_markers=("OPEN", " BurnOut "))
+    assert p.dropout_markers == ("open", "burnout")
+    assert p.is_dropout("open")
+    assert p.is_dropout("BURNOUT")

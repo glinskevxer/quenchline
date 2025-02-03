@@ -94,6 +94,11 @@ class MappingProfile:
         matches = [c.match for c in self.columns]
         if len(set(matches)) != len(matches):
             raise ValidationError("two columns match the same heading", field="columns")
+        # Markers are compared against a lower cased cell, so store them that way
+        # rather than trusting whoever wrote the profile to have done it.
+        object.__setattr__(
+            self, "dropout_markers", tuple(m.strip().lower() for m in self.dropout_markers)
+        )
 
     @property
     def time_match(self) -> str:
