@@ -17,6 +17,7 @@ import click
 from .. import __version__
 from ..errors import ConflictError, NotFoundError, QuenchlineError, StateError, ValidationError
 from .context import Context, parse_day
+from .furnaces import furnace_group
 
 EXIT_VALIDATION = 2
 EXIT_NOT_FOUND = 3
@@ -37,7 +38,18 @@ def exit_code_for(error: QuenchlineError) -> int:
     return EXIT_OTHER
 
 
-@click.group()
+class QuenchlineGroup(click.Group):
+    """A group that turns a domain error into a one line message and an exit code."""
+
+    def invoke(self, ctx: click.Context) -> object:
+        try:
+            return super().invoke(ctx)
+        except QuenchlineError as error:
+            click.echo(f"error: {error}", err=True)
+            ctx.exit(exit_code_for(error))
+
+
+@click.group(cls=QuenchlineGroup)
 @click.version_option(version=__version__, prog_name="quenchline")
 @click.option(
     "--settings",
@@ -74,6 +86,9 @@ def main(
     ctx.call_on_close(context.close)
 
 
+main.add_command(furnace_group)
+
+
 @main.command("settings")
 @click.pass_obj
 def show_settings(context: Context) -> None:
@@ -98,17 +113,19 @@ def _render(value: object) -> str:
 def run(argv: list[str] | None = None) -> int:
     """Entry point that turns a domain error into an exit code."""
     try:
-        main.main(args=argv, standalone_mode=False)
+        returned = main.main(args=argv, standalone_mode=False)
     except QuenchlineError as error:
         click.echo(f"error: {error}", err=True)
         return exit_code_for(error)
+    except click.exceptions.Exit as exit_signal:
+        return int(exit_signal.exit_code)
     except click.ClickException as error:
         error.show()
         return error.exit_code
     except click.exceptions.Abort:
         click.echo("aborted", err=True)
         return EXIT_OTHER
-    return 0
+    return int(returned) if isinstance(returned, int) else 0
 
 
 if __name__ == "__main__":  # pragma: no cover
