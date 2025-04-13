@@ -18,6 +18,7 @@ from .. import __version__
 from ..errors import ConflictError, NotFoundError, QuenchlineError, StateError, ValidationError
 from .context import Context, parse_day
 from .furnaces import furnace_group
+from .loads import load_group
 from .sensors import sensor_group
 
 EXIT_VALIDATION = 2
@@ -88,6 +89,7 @@ def main(
 
 
 main.add_command(furnace_group)
+main.add_command(load_group)
 main.add_command(sensor_group)
 
 
