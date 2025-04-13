@@ -22,6 +22,11 @@ from ..measure import Mass
 from .database import Database
 
 
+def _key(lot: LotNumber | str) -> str:
+    """Canonical text for a lot number, however it was written."""
+    return str(lot if isinstance(lot, LotNumber) else LotNumber.parse(lot))
+
+
 class LoadRepository:
     """Load records and the parts on them."""
 
@@ -68,7 +73,7 @@ class LoadRepository:
 
     def exists(self, lot: LotNumber | str) -> bool:
         return (
-            self.database.one("SELECT lot FROM load_record WHERE lot = ?", (str(lot),))
+            self.database.one("SELECT lot FROM load_record WHERE lot = ?", (_key(lot),))
             is not None
         )
 
@@ -76,14 +81,14 @@ class LoadRepository:
         row = self.database.one(
             "SELECT lot, work_order, furnace_tag, recipe_code, recipe_revision, state, "
             "weight_lb, charged_at, started_at, finished_at FROM load_record WHERE lot = ?",
-            (str(lot),),
+            (_key(lot),),
         )
         if row is None:
-            raise NotFoundError("load", str(lot))
+            raise NotFoundError("load", _key(lot))
         parts = self.database.query(
             "SELECT part_number, quantity, material, description FROM load_part "
             "WHERE lot = ? ORDER BY part_number",
-            (str(lot),),
+            (_key(lot),),
         )
         return Load(
             lot=LotNumber.parse(row["lot"]),
@@ -113,15 +118,17 @@ class LoadRepository:
         return [self.get(row["lot"]) for row in rows]
 
     def on_furnace(self, furnace: FurnaceTag | str) -> list[Load]:
+        tag = furnace if isinstance(furnace, FurnaceTag) else FurnaceTag.parse(furnace)
         rows = self.database.query(
-            "SELECT lot FROM load_record WHERE furnace_tag = ? ORDER BY lot", (str(furnace),)
+            "SELECT lot FROM load_record WHERE furnace_tag = ? ORDER BY lot", (str(tag),)
         )
         return [self.get(row["lot"]) for row in rows]
 
     def for_work_order(self, work_order: WorkOrder | str) -> list[Load]:
+        order = work_order if isinstance(work_order, WorkOrder) else WorkOrder.parse(work_order)
         rows = self.database.query(
             "SELECT lot FROM load_record WHERE work_order = ? ORDER BY lot",
-            (str(work_order),),
+            (str(order),),
         )
         return [self.get(row["lot"]) for row in rows]
 
@@ -149,10 +156,10 @@ class LoadRepository:
 
     def delete(self, lot: LotNumber | str) -> None:
         if not self.exists(lot):
-            raise NotFoundError("load", str(lot))
+            raise NotFoundError("load", _key(lot))
         with self.database.transaction() as connection:
-            connection.execute("DELETE FROM load_part WHERE lot = ?", (str(lot),))
-            connection.execute("DELETE FROM load_record WHERE lot = ?", (str(lot),))
+            connection.execute("DELETE FROM load_part WHERE lot = ?", (_key(lot),))
+            connection.execute("DELETE FROM load_record WHERE lot = ?", (_key(lot),))
 
     def count(self) -> int:
         row = self.database.one("SELECT COUNT(*) AS n FROM load_record")

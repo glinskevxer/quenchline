@@ -23,6 +23,11 @@ from ..temperature import Temperature
 from .database import Database
 
 
+def _key(tag: FurnaceTag | str) -> str:
+    """Canonical text for a furnace tag, however it was written."""
+    return str(tag if isinstance(tag, FurnaceTag) else FurnaceTag.parse(tag))
+
+
 class FurnaceRepository:
     """Furnaces and their work zones."""
 
@@ -81,17 +86,17 @@ class FurnaceRepository:
             )
 
     def exists(self, tag: FurnaceTag | str) -> bool:
-        row = self.database.one("SELECT tag FROM furnace WHERE tag = ?", (str(tag),))
+        row = self.database.one("SELECT tag FROM furnace WHERE tag = ?", (_key(tag),))
         return row is not None
 
     def get(self, tag: FurnaceTag | str) -> Furnace:
         row = self.database.one(
             "SELECT tag, furnace_class, instrumentation, status, qualified_low, "
             "qualified_high, description FROM furnace WHERE tag = ?",
-            (str(tag),),
+            (_key(tag),),
         )
         if row is None:
-            raise NotFoundError("furnace", str(tag))
+            raise NotFoundError("furnace", _key(tag))
         return self._build(row)
 
     def all(self) -> list[Furnace]:
@@ -117,10 +122,10 @@ class FurnaceRepository:
 
     def delete(self, tag: FurnaceTag | str) -> None:
         if not self.exists(tag):
-            raise NotFoundError("furnace", str(tag))
+            raise NotFoundError("furnace", _key(tag))
         with self.database.transaction() as connection:
-            connection.execute("DELETE FROM work_zone WHERE furnace_tag = ?", (str(tag),))
-            connection.execute("DELETE FROM furnace WHERE tag = ?", (str(tag),))
+            connection.execute("DELETE FROM work_zone WHERE furnace_tag = ?", (_key(tag),))
+            connection.execute("DELETE FROM furnace WHERE tag = ?", (_key(tag),))
 
     def count(self) -> int:
         row = self.database.one("SELECT COUNT(*) AS n FROM furnace")

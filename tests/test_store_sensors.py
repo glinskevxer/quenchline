@@ -186,3 +186,18 @@ def test_deleting_a_couple_takes_its_uses(repo: SensorRepository) -> None:
 def test_an_empty_ledger_comes_back_empty(repo: SensorRepository) -> None:
     repo.insert(couple())
     assert repo.ledger("TC-00001").is_empty
+
+
+def test_a_short_tag_finds_the_same_couple(repo: SensorRepository) -> None:
+    repo.insert(couple("TC-01"))
+    assert repo.exists("TC-1")
+    assert str(repo.get("TC-1").tag) == "TC-00001"
+
+
+def test_a_short_tag_books_a_use_against_the_same_couple(repo: SensorRepository) -> None:
+    repo.insert(couple("TC-01"))
+    repo.record_use(
+        "TC-1",
+        UsageEvent(date(2024, 9, 1), Temperature.fahrenheit(1550), hours(2), SensorRole.SURVEY),
+    )
+    assert repo.ledger("TC-00001").uses == 1

@@ -162,3 +162,9 @@ def test_piece_count_sums_across_loads(repo: LoadRepository) -> None:
     repo.insert(load("L24-0917"))
     repo.insert(load("L24-0918", parts=(PartLine("PN-9000", 5),)))
     assert repo.piece_count() == 45
+
+
+def test_lookups_accept_an_untidy_tag(repo: LoadRepository) -> None:
+    repo.insert(load())
+    assert [str(item.lot) for item in repo.on_furnace("ht-4")] == ["L24-0917"]
+    assert [str(item.lot) for item in repo.for_work_order("w104417")] == ["L24-0917"]

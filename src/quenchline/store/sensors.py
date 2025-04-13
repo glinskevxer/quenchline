@@ -101,6 +101,15 @@ class CertificateRepository:
         return int(row["n"]) if row is not None else 0
 
 
+def _key(tag: SensorTag | str) -> str:
+    """Canonical text for a tag, however it was written.
+
+    ``TC-01`` and ``TC-00001`` are the same couple, and a caller typing the
+    short form at a command line should not silently miss the record.
+    """
+    return str(tag if isinstance(tag, SensorTag) else SensorTag.parse(tag))
+
+
 class SensorRepository:
     """Thermocouples and their usage ledgers."""
 
@@ -134,7 +143,7 @@ class SensorRepository:
 
     def exists(self, tag: SensorTag | str) -> bool:
         return (
-            self.database.one("SELECT tag FROM thermocouple WHERE tag = ?", (str(tag),))
+            self.database.one("SELECT tag FROM thermocouple WHERE tag = ?", (_key(tag),))
             is not None
         )
 
@@ -142,10 +151,10 @@ class SensorRepository:
         row = self.database.one(
             "SELECT tag, kind, construction, role, grade, status, location, "
             "certificate_number FROM thermocouple WHERE tag = ?",
-            (str(tag),),
+            (_key(tag),),
         )
         if row is None:
-            raise NotFoundError("thermocouple", str(tag))
+            raise NotFoundError("thermocouple", _key(tag))
         certificate = (
             self.certificates.get(row["certificate_number"])
             if row["certificate_number"]
@@ -180,21 +189,21 @@ class SensorRepository:
 
     def delete(self, tag: SensorTag | str) -> None:
         if not self.exists(tag):
-            raise NotFoundError("thermocouple", str(tag))
+            raise NotFoundError("thermocouple", _key(tag))
         with self.database.transaction() as connection:
-            connection.execute("DELETE FROM sensor_use WHERE sensor_tag = ?", (str(tag),))
-            connection.execute("DELETE FROM thermocouple WHERE tag = ?", (str(tag),))
+            connection.execute("DELETE FROM sensor_use WHERE sensor_tag = ?", (_key(tag),))
+            connection.execute("DELETE FROM thermocouple WHERE tag = ?", (_key(tag),))
 
     def record_use(self, tag: SensorTag | str, event: UsageEvent) -> None:
         if not self.exists(tag):
-            raise NotFoundError("thermocouple", str(tag))
+            raise NotFoundError("thermocouple", _key(tag))
         with self.database.transaction() as connection:
             connection.execute(
                 "INSERT INTO sensor_use "
                 "(sensor_tag, used_on, peak_f, seconds, role, reference) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
                 (
-                    str(tag),
+                    _key(tag),
                     event.on.isoformat(),
                     event.peak.degf,
                     event.at_temperature.seconds,
@@ -205,11 +214,11 @@ class SensorRepository:
 
     def ledger(self, tag: SensorTag | str) -> UsageLedger:
         if not self.exists(tag):
-            raise NotFoundError("thermocouple", str(tag))
+            raise NotFoundError("thermocouple", _key(tag))
         rows = self.database.query(
             "SELECT used_on, peak_f, seconds, role, reference FROM sensor_use "
             "WHERE sensor_tag = ? ORDER BY used_on, id",
-            (str(tag),),
+            (_key(tag),),
         )
         ledger = UsageLedger()
         for row in rows:
