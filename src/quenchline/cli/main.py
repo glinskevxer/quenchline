@@ -21,6 +21,7 @@ from .db import db_group
 from .furnaces import furnace_group
 from .loads import load_group
 from .ncr import ncr_group
+from .report import report_group
 from .sensors import sensor_group
 
 EXIT_VALIDATION = 2
@@ -94,6 +95,7 @@ main.add_command(db_group)
 main.add_command(furnace_group)
 main.add_command(load_group)
 main.add_command(ncr_group)
+main.add_command(report_group)
 main.add_command(sensor_group)
 
 
