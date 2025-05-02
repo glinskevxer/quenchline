@@ -84,7 +84,7 @@ def test_the_happy_path() -> None:
     assert item.load_sensors[0].serial == 1
     item = item.start(STARTED)
     assert item.state is LoadState.RUNNING
-    item = item.finish(FINISHED, TRACE)
+    item = item.attach(TRACE).finish(FINISHED)
     assert item.state is LoadState.COMPLETE
     assert item.has_trace
     item = item.certify()
@@ -96,7 +96,7 @@ def test_states_cannot_be_skipped() -> None:
     with pytest.raises(StateError):
         item.start(STARTED)
     with pytest.raises(StateError):
-        item.finish(FINISHED, TRACE)
+        item.attach(TRACE).finish(FINISHED)
     with pytest.raises(StateError):
         item.certify()
 
@@ -110,10 +110,31 @@ def test_a_running_load_cannot_be_certified() -> None:
 def test_a_load_with_no_trace_cannot_be_certified() -> None:
     item = load(state=LoadState.COMPLETE)
     assert not item.has_trace
+    assert not item.has_trace_reference
     with pytest.raises(StateError):
         item.certify()
     with pytest.raises(StateError):
         item.trace_or_raise()
+
+
+def test_a_load_cannot_finish_before_the_trace_is_attached() -> None:
+    item = load().charge(CHARGED).start(STARTED)
+    with pytest.raises(StateError):
+        item.finish(FINISHED)
+
+
+def test_a_trace_reference_alone_is_enough_to_finish_and_certify() -> None:
+    item = load(
+        state=LoadState.RUNNING,
+        charged_at=CHARGED,
+        started_at=STARTED,
+        trace_source="run-2411.csv",
+    )
+    assert item.has_trace_reference
+    assert not item.has_trace
+    finished = item.finish(FINISHED)
+    assert finished.state is LoadState.COMPLETE
+    assert finished.certify().state is LoadState.CERTIFIED
 
 
 def test_times_must_run_forward() -> None:
@@ -122,11 +143,11 @@ def test_times_must_run_forward() -> None:
         item.start(datetime(2024, 11, 4, 5, 0))
     running = item.start(STARTED)
     with pytest.raises(ValidationError):
-        running.finish(datetime(2024, 11, 4, 6, 45), TRACE)
+        running.attach(TRACE).finish(datetime(2024, 11, 4, 6, 45))
 
 
 def test_rejection_needs_a_reason_and_is_final() -> None:
-    item = load().charge(CHARGED).start(STARTED).finish(FINISHED, TRACE)
+    item = load().charge(CHARGED).start(STARTED).attach(TRACE).finish(FINISHED)
     with pytest.raises(ValidationError):
         item.reject("  ")
     rejected = item.reject("soak short by twelve minutes")
@@ -156,7 +177,7 @@ def test_a_hold_needs_a_reason_and_cannot_be_doubled() -> None:
 
 
 def test_a_finished_load_cannot_be_held() -> None:
-    item = load().charge(CHARGED).start(STARTED).finish(FINISHED, TRACE).certify()
+    item = load().charge(CHARGED).start(STARTED).attach(TRACE).finish(FINISHED).certify()
     with pytest.raises(StateError):
         item.hold("too late")
 
@@ -167,7 +188,7 @@ def test_only_a_held_load_can_be_released() -> None:
 
 
 def test_a_held_load_can_be_rejected_without_being_released_first() -> None:
-    item = load().charge(CHARGED).start(STARTED).finish(FINISHED, TRACE)
+    item = load().charge(CHARGED).start(STARTED).attach(TRACE).finish(FINISHED)
     held = item.hold("waiting on hardness")
     assert held.reject("hardness low").state is LoadState.REJECTED
 
@@ -177,3 +198,35 @@ def test_transitions_do_not_mutate_the_original() -> None:
     charged = item.charge(CHARGED)
     assert item.state is LoadState.PLANNED
     assert charged is not item
+
+
+def test_a_trace_can_be_attached_before_the_load_finishes() -> None:
+    item = load().charge(CHARGED).start(STARTED).attach(TRACE, digest="abc")
+    assert item.has_trace
+    assert item.trace_digest == "abc"
+    assert item.state is LoadState.RUNNING
+
+
+def test_attaching_records_the_source() -> None:
+    trace = Trace(
+        STARTED,
+        (Channel.of("C1", ChannelRole.CONTROL, [(minutes(0), 100.0), (minutes(30), 1550.0)]),),
+        "run-2411.csv",
+    )
+    assert load().attach(trace).trace_source == "run-2411.csv"
+
+
+def test_a_finished_load_cannot_take_a_new_trace() -> None:
+    item = load().charge(CHARGED).start(STARTED).attach(TRACE).finish(FINISHED).certify()
+    with pytest.raises(StateError):
+        item.attach(TRACE)
+
+
+def test_finishing_keeps_the_source_the_attach_recorded() -> None:
+    trace = Trace(
+        STARTED,
+        (Channel.of("C1", ChannelRole.CONTROL, [(minutes(0), 100.0), (minutes(30), 1550.0)]),),
+        "run-2411.csv",
+    )
+    item = load().charge(CHARGED).start(STARTED).attach(trace).finish(FINISHED)
+    assert item.trace_source == "run-2411.csv"

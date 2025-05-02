@@ -43,7 +43,8 @@ class LoadRepository:
             connection.execute(
                 "INSERT OR REPLACE INTO load_record (lot, work_order, furnace_tag, "
                 "recipe_code, recipe_revision, state, weight_lb, charged_at, started_at, "
-                "finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "finished_at, trace_source, trace_digest, trace_started) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     str(load.lot),
                     str(load.work_order),
@@ -55,6 +56,9 @@ class LoadRepository:
                     _stamp(load.charged_at),
                     _stamp(load.started_at),
                     _stamp(load.finished_at),
+                    load.trace_source or None,
+                    load.trace_digest or None,
+                    _stamp(load.trace.started) if load.trace is not None else None,
                 ),
             )
             connection.execute("DELETE FROM load_part WHERE lot = ?", (str(load.lot),))
@@ -80,7 +84,8 @@ class LoadRepository:
     def get(self, lot: LotNumber | str) -> Load:
         row = self.database.one(
             "SELECT lot, work_order, furnace_tag, recipe_code, recipe_revision, state, "
-            "weight_lb, charged_at, started_at, finished_at FROM load_record WHERE lot = ?",
+            "weight_lb, charged_at, started_at, finished_at, trace_source, trace_digest "
+            "FROM load_record WHERE lot = ?",
             (_key(lot),),
         )
         if row is None:
@@ -105,6 +110,8 @@ class LoadRepository:
             charged_at=_read(row["charged_at"]),
             started_at=_read(row["started_at"]),
             finished_at=_read(row["finished_at"]),
+            trace_source=row["trace_source"] or "",
+            trace_digest=row["trace_digest"] or "",
         )
 
     def all(self) -> list[Load]:
@@ -160,6 +167,13 @@ class LoadRepository:
         with self.database.transaction() as connection:
             connection.execute("DELETE FROM load_part WHERE lot = ?", (_key(lot),))
             connection.execute("DELETE FROM load_record WHERE lot = ?", (_key(lot),))
+
+    def with_trace_digest(self, digest: str) -> list[Load]:
+        """Loads already carrying one logger file, so it is not attached twice."""
+        rows = self.database.query(
+            "SELECT lot FROM load_record WHERE trace_digest = ? ORDER BY lot", (digest,)
+        )
+        return [self.get(row["lot"]) for row in rows]
 
     def count(self) -> int:
         row = self.database.one("SELECT COUNT(*) AS n FROM load_record")

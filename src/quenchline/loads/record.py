@@ -81,6 +81,8 @@ class Load:
     started_at: datetime | None = None
     finished_at: datetime | None = None
     trace: Trace | None = None
+    trace_source: str = ""
+    trace_digest: str = ""
     previous_state: LoadState | None = None
     notes: tuple[str, ...] = field(default_factory=tuple)
 
@@ -104,6 +106,15 @@ class Load:
     @property
     def has_trace(self) -> bool:
         return self.trace is not None
+
+    @property
+    def has_trace_reference(self) -> bool:
+        """Whether a logger file has been recorded against this load.
+
+        The trace itself lives in the file it arrived as, so a load read back
+        from the database carries the reference and not the readings.
+        """
+        return self.trace is not None or bool(self.trace_source or self.trace_digest)
 
     def trace_or_raise(self) -> Trace:
         if self.trace is None:
@@ -133,15 +144,37 @@ class Load:
             raise ValidationError("a load cannot start before it was charged", field="at")
         return replace(self, state=LoadState.RUNNING, started_at=at)
 
-    def finish(self, at: datetime, trace: Trace) -> Load:
+    def attach(self, trace: Trace, *, digest: str = "") -> Load:
+        """Hang a trace on the load, wherever it is in its life.
+
+        The trace is attached before the load is finished, not as part of
+        finishing it, because the logger file usually lands minutes after the
+        furnace door opens and somebody has to be able to look at it before
+        deciding the load is done.
+        """
+        if self.state.is_final:
+            raise StateError("a finished load cannot take a new trace", state=self.state.value)
+        return replace(self, trace=trace, trace_source=trace.source, trace_digest=digest)
+
+    def finish(self, at: datetime) -> Load:
+        """Close the cycle. The trace has to be on the load already.
+
+        Finishing used to take the trace as an argument, which quietly allowed a
+        load to be closed with a trace nobody had recorded anywhere. The trace
+        is attached first, by name, and finishing checks it is there.
+        """
         self._require(LoadState.RUNNING)
+        if not self.has_trace_reference:
+            raise StateError(
+                "attach the logger file before finishing the load", state=self.state.value
+            )
         if self.started_at is not None and at < self.started_at:
             raise ValidationError("a load cannot finish before it started", field="at")
-        return replace(self, state=LoadState.COMPLETE, finished_at=at, trace=trace)
+        return replace(self, state=LoadState.COMPLETE, finished_at=at)
 
     def certify(self) -> Load:
         self._require(LoadState.COMPLETE)
-        if self.trace is None:
+        if not self.has_trace_reference:
             raise StateError("a load with no trace cannot be certified", state=self.state.value)
         return replace(self, state=LoadState.CERTIFIED)
 

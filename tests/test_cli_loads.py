@@ -103,8 +103,8 @@ def test_finishing_without_a_trace_is_refused(cli: Callable[..., Result]) -> Non
     cli("load", "charge", "L25-0001")
     cli("load", "start", "L25-0001", "--at", "2025-04-01T07:00:00")
     result = cli("load", "finish", "L25-0001", "--at", "2025-04-01T12:00:00")
-    assert result.exit_code == EXIT_VALIDATION
-    assert "attach a trace" in result.output
+    assert result.exit_code == EXIT_STATE
+    assert "attach the logger file" in result.output
 
 
 def test_a_bad_time_is_refused(cli: Callable[..., Result]) -> None:
@@ -159,3 +159,68 @@ def test_show_prints_the_traveller(cli: Callable[..., Result]) -> None:
 
 def test_show_of_an_unknown_load(cli: Callable[..., Result]) -> None:
     assert cli("load", "show", "L25-9999").exit_code == EXIT_NOT_FOUND
+
+
+GOOD_TRACE = """Elapsed (min),Channel 1,Channel 2,Channel 3,Channel 4
+0,100,101,95,96
+30,1545,1546,1538,1539
+60,1552,1551,1549,1548
+"""
+
+
+def test_a_trace_can_be_attached(cli: Callable[..., Result], tmp_path: Path) -> None:
+    plan(cli)
+    cli("load", "charge", "L25-0001")
+    cli("load", "start", "L25-0001", "--at", "2025-04-01T07:00:00")
+    path = tmp_path / "run.csv"
+    path.write_text(GOOD_TRACE)
+    result = cli("load", "attach", "L25-0001", str(path), "--profile", "eurotherm 6100")
+    assert result.exit_code == 0
+    assert "carries run.csv" in result.output
+    assert "3 row(s) over 4 channel(s)" in result.output
+
+
+def test_the_same_file_cannot_go_on_two_loads(
+    cli: Callable[..., Result], tmp_path: Path
+) -> None:
+    plan(cli, "L25-0001")
+    plan(cli, "L25-0002")
+    path = tmp_path / "run.csv"
+    path.write_text(GOOD_TRACE)
+    cli("load", "attach", "L25-0001", str(path), "--profile", "eurotherm 6100")
+    again = cli("load", "attach", "L25-0002", str(path), "--profile", "eurotherm 6100")
+    assert again.exit_code == EXIT_VALIDATION
+    assert "already on load L25-0001" in again.output
+
+
+def test_reattaching_the_same_file_to_the_same_load_is_fine(
+    cli: Callable[..., Result], tmp_path: Path
+) -> None:
+    plan(cli)
+    path = tmp_path / "run.csv"
+    path.write_text(GOOD_TRACE)
+    cli("load", "attach", "L25-0001", str(path), "--profile", "eurotherm 6100")
+    again = cli("load", "attach", "L25-0001", str(path), "--profile", "eurotherm 6100")
+    assert again.exit_code == 0
+
+
+def test_a_junk_file_is_refused(cli: Callable[..., Result], tmp_path: Path) -> None:
+    plan(cli)
+    path = tmp_path / "run.csv"
+    path.write_text("Elapsed (min),Channel 1\n0,100\n")
+    result = cli("load", "attach", "L25-0001", str(path), "--profile", "eurotherm 6100")
+    assert result.exit_code == EXIT_VALIDATION
+
+
+def test_finishing_works_once_a_trace_is_attached(
+    cli: Callable[..., Result], tmp_path: Path
+) -> None:
+    plan(cli)
+    cli("load", "charge", "L25-0001")
+    cli("load", "start", "L25-0001", "--at", "2025-04-01T07:00:00")
+    path = tmp_path / "run.csv"
+    path.write_text(GOOD_TRACE)
+    cli("load", "attach", "L25-0001", str(path), "--profile", "eurotherm 6100")
+    result = cli("load", "finish", "L25-0001", "--at", "2025-04-01T12:00:00")
+    assert result.exit_code == 0
+    assert "complete" in result.output

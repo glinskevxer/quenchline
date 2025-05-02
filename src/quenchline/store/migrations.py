@@ -192,6 +192,16 @@ MIGRATIONS: tuple[Migration, ...] = (
             "CREATE INDEX ncr_by_reference ON nonconformance(reference)",
         ),
     ),
+    Migration(
+        6,
+        "load trace reference",
+        (
+            "ALTER TABLE load_record ADD COLUMN trace_source TEXT",
+            "ALTER TABLE load_record ADD COLUMN trace_digest TEXT",
+            "ALTER TABLE load_record ADD COLUMN trace_started TEXT",
+            "CREATE INDEX load_by_trace_digest ON load_record(trace_digest)",
+        ),
+    ),
 )
 
 

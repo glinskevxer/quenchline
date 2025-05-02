@@ -55,7 +55,8 @@ def load(run: Trace) -> Load:
         )
         .charge(CHARGED, (SensorTag.parse("TC-01"),))
         .start(STARTED)
-        .finish(FINISHED, run)
+        .attach(run)
+        .finish(FINISHED)
     )
 
 

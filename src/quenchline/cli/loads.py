@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 
 import click
 
 from ..errors import ValidationError
 from ..identity import FurnaceTag, LotNumber, SensorTag, WorkOrder
+from ..ingest.pipeline import import_text
+from ..ingest.profiles import ProfileLibrary
+from ..ingest.quarantine import ImportLog
 from ..loads.record import Load, LoadState, PartLine
 from ..loads.reporting import load_header, parts_table
 from ..measure import Mass, MassUnit
@@ -96,16 +100,45 @@ def start(context: Context, lot: str, at_text: str | None) -> None:
 def finish(context: Context, lot: str, at_text: str | None) -> None:
     """Mark the cycle finished. The trace is attached separately."""
     shop = context.shop()
-    record = shop.loads.get(lot)
-    trace = record.trace
-    if trace is None:
-        raise ValidationError(
-            "attach a trace with the ingest commands before finishing the load",
-            field="trace",
-        )
-    moved = record.finish(_moment(at_text, context), trace)
+    moved = shop.loads.get(lot).finish(_moment(at_text, context))
     shop.loads.save(moved)
     click.echo(f"{moved.lot} complete")
+
+
+@load_group.command("attach")
+@click.argument("lot")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--profile", "profile_name", required=True, help="mapping profile name")
+@click.option("--tolerance", type=float, default=0.02)
+@click.pass_obj
+def attach(context: Context, lot: str, path: Path, profile_name: str, tolerance: float) -> None:
+    """Read a logger file and hang it on a load."""
+    shop = context.shop()
+    record = shop.loads.get(lot)
+    started = record.started_at or datetime.combine(context.today, datetime.min.time())
+    result = import_text(
+        path.name,
+        path.read_text(),
+        profile_name,
+        started,
+        ProfileLibrary.with_built_ins(),
+        ImportLog(),
+        tolerance=tolerance,
+    )
+    if result.trace is None:
+        raise ValidationError(
+            f"{path.name} produced no usable trace: {result.detail or result.outcome.value}",
+            field="path",
+        )
+    already = shop.loads.with_trace_digest(result.digest)
+    others = [item for item in already if str(item.lot) != str(record.lot)]
+    if others:
+        raise ValidationError(f"that file is already on load {others[0].lot}", field="path")
+    shop.loads.save(record.attach(result.trace, digest=result.digest))
+    click.echo(
+        f"{record.lot} carries {path.name}, "
+        f"{result.quarantine.accepted} row(s) over {len(result.trace.channels)} channel(s)"
+    )
 
 
 @load_group.command("hold")

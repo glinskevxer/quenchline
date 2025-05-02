@@ -168,3 +168,27 @@ def test_lookups_accept_an_untidy_tag(repo: LoadRepository) -> None:
     repo.insert(load())
     assert [str(item.lot) for item in repo.on_furnace("ht-4")] == ["L24-0917"]
     assert [str(item.lot) for item in repo.for_work_order("w104417")] == ["L24-0917"]
+
+
+def test_the_trace_reference_round_trips(repo: LoadRepository) -> None:
+    from quenchline.loads.trace import Channel, ChannelRole, Trace
+    from quenchline.timespan import minutes
+
+    trace = Trace(
+        datetime(2024, 11, 4, 7, 0),
+        (Channel.of("C1", ChannelRole.CONTROL, [(minutes(0), 100.0), (minutes(30), 1550.0)]),),
+        "run-2411.csv",
+    )
+    repo.insert(load(state=LoadState.RUNNING).attach(trace, digest="deadbeef"))
+    loaded = repo.get("L24-0917")
+    assert loaded.trace_source == "run-2411.csv"
+    assert loaded.trace_digest == "deadbeef"
+    assert [str(item.lot) for item in repo.with_trace_digest("deadbeef")] == ["L24-0917"]
+
+
+def test_a_load_with_no_trace_reference_comes_back_blank(repo: LoadRepository) -> None:
+    repo.insert(load())
+    loaded = repo.get("L24-0917")
+    assert loaded.trace_source == ""
+    assert loaded.trace_digest == ""
+    assert repo.with_trace_digest("deadbeef") == []
