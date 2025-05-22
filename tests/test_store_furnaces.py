@@ -129,3 +129,42 @@ def test_a_failed_insert_leaves_nothing_behind(repo: FurnaceRepository) -> None:
     with pytest.raises(ConflictError):
         repo.insert(furnace("HT-04", zones=(REAR,)))
     assert [z.name for z in repo.get("HT-04").zones] == ["main"]
+
+
+def test_wired_sensors_round_trip(repo: FurnaceRepository) -> None:
+    from quenchline.identity import SensorTag
+    from quenchline.sensors.record import SensorRole
+
+    wired = furnace().wire(SensorRole.CONTROL, SensorTag.parse("TC-01"))
+    wired = wired.wire(SensorRole.RECORD, SensorTag.parse("TC-02"))
+    repo.insert(wired)
+    loaded = repo.get("HT-04")
+    assert loaded.sensor_count(SensorRole.CONTROL) == 1
+    assert [str(t) for t in loaded.sensors_in_role(SensorRole.RECORD)] == ["TC-00002"]
+
+
+def test_saving_replaces_the_wiring(repo: FurnaceRepository) -> None:
+    from quenchline.identity import SensorTag
+    from quenchline.sensors.record import SensorRole
+
+    repo.insert(furnace().wire(SensorRole.CONTROL, SensorTag.parse("TC-01")))
+    repo.save(repo.get("HT-04").unwire(SensorTag.parse("TC-01")))
+    assert repo.get("HT-04").sensors == ()
+
+
+def test_wired_to_finds_the_furnace(repo: FurnaceRepository) -> None:
+    from quenchline.identity import SensorTag
+    from quenchline.sensors.record import SensorRole
+
+    repo.insert(furnace().wire(SensorRole.CONTROL, SensorTag.parse("TC-01")))
+    assert repo.wired_to("TC-1") == "HT-04"
+    assert repo.wired_to("TC-99") is None
+
+
+def test_deleting_a_furnace_takes_its_wiring(repo: FurnaceRepository) -> None:
+    from quenchline.identity import SensorTag
+    from quenchline.sensors.record import SensorRole
+
+    repo.insert(furnace().wire(SensorRole.CONTROL, SensorTag.parse("TC-01")))
+    repo.delete("HT-04")
+    assert repo.database.query("SELECT sensor_tag FROM furnace_sensor") == []

@@ -156,3 +156,64 @@ def test_the_deficiency_report_lists_the_bad_ones(cli: Callable[..., Result]) ->
     result = cli("furnace", "deficiencies")
     assert "instrumentation shortfalls" in result.output
     assert "HT-04" in result.output
+
+
+def add_zone(cli: Callable[..., Result], tag: str = "HT-04") -> None:
+    cli(
+        "furnace",
+        "zone",
+        tag,
+        "main",
+        "--cubic-feet",
+        "40",
+        "--low",
+        "1000",
+        "--high",
+        "1800",
+    )
+
+
+def test_wiring_a_sensor_clears_the_shortfall(cli: Callable[..., Result]) -> None:
+    cli("furnace", "add", "HT-04", "--class", "3", "--instrumentation", "E")
+    add_zone(cli)
+    result = cli("furnace", "wire", "HT-04", "TC-01", "--role", "control")
+    assert result.exit_code == 0
+    assert "wired to HT-04 as control" in result.output
+    assert "no shortfall" in result.output
+
+
+def test_wiring_reports_what_is_still_missing(cli: Callable[..., Result]) -> None:
+    cli("furnace", "add", "HT-04", "--class", "3", "--instrumentation", "A")
+    result = cli("furnace", "wire", "HT-04", "TC-01", "--role", "control")
+    assert "no_over_temperature" in result.output
+
+
+def test_a_sensor_cannot_be_wired_to_two_furnaces(cli: Callable[..., Result]) -> None:
+    cli("furnace", "add", "HT-04", "--class", "3", "--instrumentation", "E")
+    cli("furnace", "add", "HT-05", "--class", "3", "--instrumentation", "E")
+    cli("furnace", "wire", "HT-04", "TC-01", "--role", "control")
+    result = cli("furnace", "wire", "HT-05", "TC-01", "--role", "control")
+    assert result.exit_code == EXIT_VALIDATION
+    assert "already wired to HT-04" in result.output
+
+
+def test_the_wiring_survives_a_reload(cli: Callable[..., Result]) -> None:
+    cli("furnace", "add", "HT-04", "--class", "3", "--instrumentation", "E")
+    add_zone(cli)
+    cli("furnace", "wire", "HT-04", "TC-01", "--role", "control")
+    result = cli("furnace", "show", "HT-04")
+    assert "sensors wired    1" in result.output
+    assert "deficiencies     -" in result.output
+
+
+def test_unwiring_puts_the_shortfall_back(cli: Callable[..., Result]) -> None:
+    cli("furnace", "add", "HT-04", "--class", "3", "--instrumentation", "E")
+    cli("furnace", "wire", "HT-04", "TC-01", "--role", "control")
+    removed = cli("furnace", "unwire", "HT-04", "TC-01")
+    assert "removed from HT-04" in removed.output
+    assert "too_few_control_sensors" in cli("furnace", "show", "HT-04").output
+
+
+def test_unwiring_something_that_is_not_there(cli: Callable[..., Result]) -> None:
+    cli("furnace", "add", "HT-04", "--class", "3", "--instrumentation", "E")
+    assert cli("furnace", "unwire", "HT-04", "TC-01").exit_code == EXIT_VALIDATION

@@ -17,8 +17,9 @@ from ..errors import ConflictError, NotFoundError
 from ..furnaces.classes import FurnaceClass, InstrumentationType
 from ..furnaces.record import Furnace, FurnaceStatus
 from ..furnaces.zones import QualifiedRange, WorkZone
-from ..identity import FurnaceTag
+from ..identity import FurnaceTag, SensorTag
 from ..measure import Volume
+from ..sensors.record import SensorRole
 from ..temperature import Temperature
 from .database import Database
 
@@ -44,6 +45,7 @@ class FurnaceRepository:
                 self._row(furnace),
             )
             self._write_zones(furnace)
+            self._write_sensors(furnace)
 
     def save(self, furnace: Furnace) -> None:
         """Insert or replace, zones included."""
@@ -57,7 +59,11 @@ class FurnaceRepository:
             connection.execute(
                 "DELETE FROM work_zone WHERE furnace_tag = ?", (str(furnace.tag),)
             )
+            connection.execute(
+                "DELETE FROM furnace_sensor WHERE furnace_tag = ?", (str(furnace.tag),)
+            )
             self._write_zones(furnace)
+            self._write_sensors(furnace)
 
     def _row(self, furnace: Furnace) -> tuple[object, ...]:
         qualified = furnace.qualified
@@ -83,6 +89,13 @@ class FurnaceRepository:
                     zone.low.degf,
                     zone.high.degf,
                 ),
+            )
+
+    def _write_sensors(self, furnace: Furnace) -> None:
+        for role, sensor in furnace.sensors:
+            self.database.execute(
+                "INSERT INTO furnace_sensor (furnace_tag, sensor_tag, role) VALUES (?, ?, ?)",
+                (str(furnace.tag), str(sensor), role.value),
             )
 
     def exists(self, tag: FurnaceTag | str) -> bool:
@@ -125,6 +138,7 @@ class FurnaceRepository:
             raise NotFoundError("furnace", _key(tag))
         with self.database.transaction() as connection:
             connection.execute("DELETE FROM work_zone WHERE furnace_tag = ?", (_key(tag),))
+            connection.execute("DELETE FROM furnace_sensor WHERE furnace_tag = ?", (_key(tag),))
             connection.execute("DELETE FROM furnace WHERE tag = ?", (_key(tag),))
 
     def count(self) -> int:
@@ -147,6 +161,24 @@ class FurnaceRepository:
             for row in rows
         )
 
+    def _sensors(self, tag: str) -> tuple[tuple[SensorRole, SensorTag], ...]:
+        rows = self.database.query(
+            "SELECT sensor_tag, role FROM furnace_sensor "
+            "WHERE furnace_tag = ? ORDER BY sensor_tag",
+            (tag,),
+        )
+        return tuple(
+            (SensorRole(row["role"]), SensorTag.parse(row["sensor_tag"])) for row in rows
+        )
+
+    def wired_to(self, sensor: SensorTag | str) -> str | None:
+        """Which furnace a sensor is wired to, if any."""
+        key = str(sensor if isinstance(sensor, SensorTag) else SensorTag.parse(sensor))
+        row = self.database.one(
+            "SELECT furnace_tag FROM furnace_sensor WHERE sensor_tag = ?", (key,)
+        )
+        return str(row["furnace_tag"]) if row is not None else None
+
     def _build(self, row: object) -> Furnace:
         mapping = dict(row)  # type: ignore[call-overload]
         qualified = None
@@ -160,6 +192,7 @@ class FurnaceRepository:
             furnace_class=FurnaceClass(mapping["furnace_class"]),
             instrumentation=InstrumentationType(mapping["instrumentation"]),
             zones=self._zones(mapping["tag"]),
+            sensors=self._sensors(mapping["tag"]),
             qualified=qualified,
             status=FurnaceStatus(mapping["status"]),
             description=mapping["description"],

@@ -10,9 +10,10 @@ from ..furnaces.record import Furnace
 from ..furnaces.register import FurnaceRegister
 from ..furnaces.reporting import capability_summary, deficiency_table, furnace_table
 from ..furnaces.zones import QualifiedRange, WorkZone, survey_sensor_count
-from ..identity import FurnaceTag
+from ..identity import FurnaceTag, require_sensor_tag
 from ..measure import Volume
 from ..report.table import render_kv
+from ..sensors.record import SensorRole
 from ..temperature import Scale, Temperature
 from .context import Context
 
@@ -70,6 +71,41 @@ def add_zone(
     click.echo(f"added zone {zone} to {furnace.tag}, survey needs {needed} sensors")
 
 
+@furnace_group.command("wire")
+@click.argument("tag")
+@click.argument("sensor")
+@click.option("--role", type=click.Choice([r.value for r in SensorRole]), required=True)
+@click.pass_obj
+def wire(context: Context, tag: str, sensor: str, role: str) -> None:
+    """Wire a thermocouple to a furnace."""
+    shop = context.shop()
+    furnace = shop.furnaces.get(tag)
+    sensor_tag = require_sensor_tag(sensor)
+    holder = shop.furnaces.wired_to(sensor_tag)
+    if holder is not None and holder != str(furnace.tag):
+        raise ValidationError(f"{sensor_tag} is already wired to {holder}", field="sensor")
+    updated = furnace.wire(SensorRole(role), sensor_tag)
+    shop.furnaces.save(updated)
+    shortfall = updated.deficiencies()
+    click.echo(
+        f"{sensor_tag} wired to {furnace.tag} as {role}, "
+        + ("no shortfall" if not shortfall else ", ".join(d.value for d in shortfall))
+    )
+
+
+@furnace_group.command("unwire")
+@click.argument("tag")
+@click.argument("sensor")
+@click.pass_obj
+def unwire(context: Context, tag: str, sensor: str) -> None:
+    """Take a thermocouple off a furnace."""
+    shop = context.shop()
+    furnace = shop.furnaces.get(tag)
+    sensor_tag = require_sensor_tag(sensor)
+    shop.furnaces.save(furnace.unwire(sensor_tag))
+    click.echo(f"{sensor_tag} removed from {furnace.tag}")
+
+
 @furnace_group.command("qualify")
 @click.argument("tag")
 @click.option("--low", required=True, help="lowest surveyed temperature")
@@ -113,6 +149,7 @@ def show(context: Context, tag: str) -> None:
             str(tus_interval(furnace.furnace_class, furnace.instrumentation)),
         ),
         ("work zones", len(furnace.zones)),
+        ("sensors wired", len(furnace.sensors)),
         ("deficiencies", ", ".join(d.value for d in furnace.deficiencies()) or None),
     ]
     click.echo(render_kv(rows, title=f"furnace {furnace.tag}"))

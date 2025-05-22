@@ -202,6 +202,21 @@ MIGRATIONS: tuple[Migration, ...] = (
             "CREATE INDEX load_by_trace_digest ON load_record(trace_digest)",
         ),
     ),
+    Migration(
+        7,
+        "furnace sensors",
+        (
+            """
+            CREATE TABLE furnace_sensor (
+                furnace_tag TEXT NOT NULL REFERENCES furnace(tag) ON DELETE CASCADE,
+                sensor_tag TEXT NOT NULL,
+                role TEXT NOT NULL,
+                PRIMARY KEY (furnace_tag, sensor_tag)
+            )
+            """,
+            "CREATE INDEX furnace_sensor_by_sensor ON furnace_sensor(sensor_tag)",
+        ),
+    ),
 )
 
 
