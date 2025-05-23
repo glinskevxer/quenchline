@@ -16,6 +16,7 @@ import click
 
 from .. import __version__
 from ..errors import ConflictError, NotFoundError, QuenchlineError, StateError, ValidationError
+from .analysis import analysis_group
 from .context import Context, parse_day
 from .db import db_group
 from .furnaces import furnace_group
@@ -92,6 +93,7 @@ def main(
     ctx.call_on_close(context.close)
 
 
+main.add_command(analysis_group)
 main.add_command(db_group)
 main.add_command(furnace_group)
 main.add_command(ingest_group)
