@@ -7,7 +7,6 @@ from datetime import date
 import click
 
 from ..errors import ValidationError
-from ..loads.record import LoadState
 from ..report.compliance import assess, summary_header, summary_table
 from ..report.kpi import Period, comparison_table, rollup, rollup_block
 from ..schedule.board import Board, board_summary, board_table
@@ -122,7 +121,3 @@ def _board(context: Context, grace: int) -> Board:
 
 def _plus(day: date, days: int) -> date:
     return date.fromordinal(day.toordinal() + days)
-
-
-def certified_count(context: Context) -> int:
-    return len(context.shop().loads.in_state(LoadState.CERTIFIED))

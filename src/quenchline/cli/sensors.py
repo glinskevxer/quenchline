@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import date
-
 import click
 
 from ..identity import require_sensor_tag
 from ..report.table import render_kv
 from ..sensors.calibration import Certificate, Convention
-from ..sensors.record import Construction, SensorRole, SensorStatus, Thermocouple
+from ..sensors.record import Construction, SensorRole, Thermocouple
 from ..sensors.register import SensorRegister, calibration_interval
 from ..sensors.reporting import eligibility_table, register_summary, register_table
 from ..sensors.types import ThermocoupleType, ToleranceClass, initial_tolerance
@@ -211,13 +209,3 @@ def _register(context: Context) -> SensorRegister:
         register.add(couple)
         register.ledgers[str(couple.tag)] = shop.sensors.ledger(couple.tag)
     return register
-
-
-def _usable(couple: Thermocouple) -> bool:
-    return couple.status is not SensorStatus.SCRAPPED
-
-
-def next_due(couple: Thermocouple) -> date | None:
-    if couple.certificate is None:
-        return None
-    return couple.certificate.expires(calibration_interval(couple))
