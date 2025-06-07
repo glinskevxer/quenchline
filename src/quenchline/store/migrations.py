@@ -217,6 +217,34 @@ MIGRATIONS: tuple[Migration, ...] = (
             "CREATE INDEX furnace_sensor_by_sensor ON furnace_sensor(sensor_tag)",
         ),
     ),
+    Migration(
+        8,
+        "system accuracy tests",
+        (
+            """
+            CREATE TABLE sat_test (
+                number TEXT PRIMARY KEY,
+                furnace_tag TEXT NOT NULL,
+                performed TEXT NOT NULL,
+                setpoint_f REAL NOT NULL,
+                method TEXT NOT NULL,
+                apply_corrections INTEGER NOT NULL DEFAULT 1,
+                technician TEXT NOT NULL DEFAULT '',
+                system_indicated_f REAL NOT NULL,
+                system_sensor_correction_f REAL NOT NULL,
+                system_instrument_correction_f REAL NOT NULL,
+                system_sensor TEXT,
+                system_instrument TEXT,
+                test_indicated_f REAL NOT NULL,
+                test_sensor_correction_f REAL NOT NULL,
+                test_instrument_correction_f REAL NOT NULL,
+                test_sensor TEXT,
+                test_instrument TEXT
+            )
+            """,
+            "CREATE INDEX sat_by_furnace ON sat_test(furnace_tag, performed)",
+        ),
+    ),
 )
 
 

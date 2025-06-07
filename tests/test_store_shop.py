@@ -145,3 +145,8 @@ def test_an_empty_shop_reports_zeroes(shop: Shop) -> None:
     assert set(shop.counts().values()) == {0}
     assert shop.on_the_floor() == []
     assert shop.all_loads_in_doubt() == {}
+
+
+def test_the_shop_wires_the_sat_repository(shop: Shop) -> None:
+    assert shop.sat.database is shop.database
+    assert shop.counts()["accuracy tests"] == 0
