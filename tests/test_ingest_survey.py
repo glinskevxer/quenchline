@@ -173,3 +173,115 @@ def test_a_file_with_nothing_usable_produces_nothing() -> None:
     assert not result.succeeded
     with pytest.raises(ValidationError):
         result.or_raise()
+
+
+TOML_LAYOUT = """
+[layout]
+name = "HT-04 main"
+time_heading = "Elapsed (min)"
+time_unit = "minutes"
+scale = "F"
+delimiter = ","
+dropout_markers = ["", "OPEN"]
+
+  [[layout.column]]
+  heading = "Front top left"
+  sensor = "TC-01"
+  location = "front top left"
+  corner = true
+
+  [[layout.column]]
+  heading = "Centre"
+  sensor = "TC-03"
+  centre = true
+"""
+
+
+def test_a_layout_loads_from_toml(tmp_path: object) -> None:
+    from pathlib import Path
+
+    from quenchline.ingest.survey import load_layout
+
+    assert isinstance(tmp_path, Path)
+    path = tmp_path / "layout.toml"
+    path.write_text(TOML_LAYOUT)
+    built = load_layout(path)
+    assert built.name == "HT-04 main"
+    assert built.corner_count == 1
+    assert built.keys == ("TC-00001", "TC-00003")
+    assert built.dropout_markers == ("", "open")
+
+
+def test_a_column_without_a_location_uses_its_heading(tmp_path: object) -> None:
+    from pathlib import Path
+
+    from quenchline.ingest.survey import load_layout
+
+    assert isinstance(tmp_path, Path)
+    path = tmp_path / "layout.toml"
+    path.write_text(TOML_LAYOUT)
+    built = load_layout(path)
+    assert built.columns[1].location == "Centre"
+
+
+def test_a_missing_layout_file_is_refused(tmp_path: object) -> None:
+    from pathlib import Path
+
+    from quenchline.ingest.survey import load_layout
+
+    assert isinstance(tmp_path, Path)
+    with pytest.raises(ValidationError):
+        load_layout(tmp_path / "nope.toml")
+
+
+def test_a_layout_missing_a_field_is_refused() -> None:
+    from quenchline.ingest.survey import build_layout
+
+    for missing in ("name", "time_heading", "time_unit", "scale"):
+        entry = {
+            "name": "x",
+            "time_heading": "t",
+            "time_unit": "minutes",
+            "scale": "F",
+            "column": [{"heading": "a", "sensor": "TC-01"}],
+        }
+        del entry[missing]
+        with pytest.raises(ValidationError):
+            build_layout(entry)
+
+
+def test_a_layout_with_no_columns_is_refused() -> None:
+    from quenchline.ingest.survey import build_layout
+
+    with pytest.raises(ValidationError):
+        build_layout({"name": "x", "time_heading": "t", "time_unit": "minutes", "scale": "F"})
+
+
+def test_a_column_without_a_sensor_is_refused() -> None:
+    from quenchline.ingest.survey import build_layout
+
+    with pytest.raises(ValidationError):
+        build_layout(
+            {
+                "name": "x",
+                "time_heading": "t",
+                "time_unit": "minutes",
+                "scale": "F",
+                "column": [{"heading": "a"}],
+            }
+        )
+
+
+def test_an_unknown_time_unit_is_refused() -> None:
+    from quenchline.ingest.survey import build_layout
+
+    with pytest.raises(ValidationError):
+        build_layout(
+            {
+                "name": "x",
+                "time_heading": "t",
+                "time_unit": "fortnights",
+                "scale": "F",
+                "column": [{"heading": "a", "sensor": "TC-01"}],
+            }
+        )

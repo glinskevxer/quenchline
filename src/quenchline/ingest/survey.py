@@ -19,8 +19,11 @@ Two of its rules are the reason:
 from __future__ import annotations
 
 import csv
+import tomllib
 from dataclasses import dataclass, field
 from io import StringIO
+from pathlib import Path
+from typing import Any
 
 from ..errors import ValidationError
 from ..identity import SensorTag
@@ -230,3 +233,79 @@ def read_setpoint(text: str, layout: SurveyLayout, setpoint: Temperature) -> Sur
     if not scans:
         return SurveyReadResult(None, quarantine)
     return SurveyReadResult(SurveySetpoint(setpoint, tuple(scans)), quarantine)
+
+
+def build_layout(entry: dict[str, Any]) -> SurveyLayout:
+    """Build a layout from a parsed TOML table.
+
+    The shape mirrors the mapping profiles, with position flags instead of
+    channel roles:
+
+        [layout]
+        name = "HT-04 main"
+        time_heading = "Elapsed (min)"
+        time_unit = "minutes"
+        scale = "F"
+
+          [[layout.column]]
+          heading = "Front top left"
+          sensor = "TC-01"
+          location = "front top left"
+          corner = true
+    """
+    for required in ("name", "time_heading", "time_unit", "scale"):
+        if required not in entry:
+            raise ValidationError(f"a layout needs {required}", field=required)
+    raw_columns = entry.get("column")
+    if not isinstance(raw_columns, list) or not raw_columns:
+        raise ValidationError("a layout needs columns", field="column")
+
+    columns: list[SurveyColumn] = []
+    for raw in raw_columns:
+        for required in ("heading", "sensor"):
+            if required not in raw:
+                raise ValidationError(f"a survey column needs {required}", field=required)
+        columns.append(
+            SurveyColumn(
+                heading=str(raw["heading"]),
+                sensor=SensorTag.parse(str(raw["sensor"])),
+                location=str(raw.get("location", raw["heading"])),
+                is_corner=bool(raw.get("corner", False)),
+                is_centre=bool(raw.get("centre", False)),
+            )
+        )
+
+    kwargs: dict[str, Any] = {}
+    if "delimiter" in entry:
+        kwargs["delimiter"] = str(entry["delimiter"])
+    if "dropout_markers" in entry:
+        kwargs["dropout_markers"] = tuple(str(m) for m in entry["dropout_markers"])
+
+    return SurveyLayout(
+        name=str(entry["name"]),
+        time_heading=str(entry["time_heading"]),
+        time_unit=_time_unit(str(entry["time_unit"])),
+        scale=Scale.parse(str(entry["scale"])),
+        columns=tuple(columns),
+        **kwargs,
+    )
+
+
+def load_layout(path: Path) -> SurveyLayout:
+    """Read one survey layout out of a TOML file."""
+    if not path.exists():
+        raise ValidationError(f"no layout file at {path}", field="path")
+    with path.open("rb") as handle:
+        document = tomllib.load(handle)
+    entry = document.get("layout", document)
+    if not isinstance(entry, dict):
+        raise ValidationError("the layout table is not a table", field="layout")
+    return build_layout(entry)
+
+
+def _time_unit(text: str) -> TimeUnit:
+    cleaned = text.strip().lower()
+    for unit in TimeUnit:
+        if unit.value == cleaned:
+            return unit
+    raise ValidationError(f"unknown time unit {text!r}", field="time_unit")
