@@ -9,6 +9,7 @@ import click
 from ..errors import ValidationError
 from ..report.compliance import assess, summary_header, summary_table
 from ..report.kpi import Period, comparison_table, rollup, rollup_block
+from ..sat.schedule import SatHistory
 from ..schedule.board import Board, board_summary, board_table
 from ..sensors.register import SensorRegister
 from .context import Context, parse_day
@@ -111,12 +112,27 @@ def open_work(context: Context) -> None:
 
 
 def _board(context: Context, grace: int) -> Board:
+    """Everything due, gathered from the registers that actually hold the dates."""
     shop = context.shop()
     register = SensorRegister()
     for couple in shop.sensors.all():
         register.add(couple)
         register.ledgers[str(couple.tag)] = shop.sensors.ledger(couple.tag)
-    return Board.build(context.today, sensors=register, grace=grace)
+    return Board.build(
+        context.today,
+        sensors=register,
+        sat=_sat_histories(context),
+        grace=grace,
+    )
+
+
+def _sat_histories(context: Context) -> list[SatHistory]:
+    """A judged system accuracy history per furnace on the register."""
+    shop = context.shop()
+    return [
+        shop.sat.history(furnace.tag, furnace.furnace_class, furnace.instrumentation)
+        for furnace in shop.furnaces.all()
+    ]
 
 
 def _plus(day: date, days: int) -> date:

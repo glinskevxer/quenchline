@@ -62,6 +62,27 @@ def commission(cli: Callable[..., Result]) -> None:
     ok(cli("furnace", "wire", "HT-04", "TC-01", "--role", "control"))
     ok(cli("furnace", "wire", "HT-04", "TC-02", "--role", "record"))
     ok(cli("furnace", "qualify", "HT-04", "--low", "1200", "--high", "1700"))
+    ok(
+        cli(
+            "sat",
+            "record",
+            "HT-04",
+            "--number",
+            "SAT-25-014",
+            "--setpoint",
+            "1550F",
+            "--system",
+            "1552",
+            "--probe",
+            "1550",
+            "--system-sensor",
+            "TC-01",
+            "--test-sensor",
+            "TC-99",
+            "--on",
+            "2025-05-20",
+        )
+    )
 
 
 def fit_survey_couple(cli: Callable[..., Result]) -> None:
@@ -170,6 +191,12 @@ def test_the_compliance_report_reflects_the_shop(
     run_a_load(cli, tmp_path)
     result = ok(cli("report", "compliance"))
     assert "overall     satisfied" in result.output
+
+
+def test_the_accuracy_test_keeps_the_furnace_in_date(cli: Callable[..., Result]) -> None:
+    commission(cli)
+    result = ok(cli("sat", "due"))
+    assert "in date" in result.output
 
 
 def test_an_uncalibrated_survey_couple_breaks_compliance(
