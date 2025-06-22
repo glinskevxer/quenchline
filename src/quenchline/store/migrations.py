@@ -245,6 +245,47 @@ MIGRATIONS: tuple[Migration, ...] = (
             "CREATE INDEX sat_by_furnace ON sat_test(furnace_tag, performed)",
         ),
     ),
+    Migration(
+        9,
+        "recipes and steps",
+        (
+            """
+            CREATE TABLE recipe (
+                code TEXT NOT NULL,
+                revision TEXT NOT NULL,
+                title TEXT NOT NULL,
+                material TEXT NOT NULL DEFAULT '',
+                load_sensors INTEGER NOT NULL DEFAULT 0,
+                state TEXT NOT NULL,
+                released_on TEXT,
+                superseded_on TEXT,
+                author TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (code, revision)
+            )
+            """,
+            """
+            CREATE TABLE recipe_step (
+                code TEXT NOT NULL,
+                revision TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                kind TEXT NOT NULL,
+                name TEXT NOT NULL,
+                setpoint_f REAL,
+                tolerance_f REAL,
+                minimum_seconds REAL,
+                maximum_seconds REAL,
+                ramp_maximum REAL,
+                ramp_minimum REAL,
+                quench_delay_seconds REAL,
+                medium TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (code, revision, position),
+                FOREIGN KEY (code, revision)
+                    REFERENCES recipe(code, revision) ON DELETE CASCADE
+            )
+            """,
+            "CREATE INDEX recipe_by_state ON recipe(code, state)",
+        ),
+    ),
 )
 
 
