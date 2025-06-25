@@ -23,6 +23,7 @@ from .furnaces import furnace_group
 from .ingest import ingest_group
 from .loads import load_group
 from .ncr import ncr_group
+from .recipes import recipe_group
 from .report import report_group
 from .sat import sat_group
 from .sensors import sensor_group
@@ -101,6 +102,7 @@ main.add_command(furnace_group)
 main.add_command(ingest_group)
 main.add_command(load_group)
 main.add_command(ncr_group)
+main.add_command(recipe_group)
 main.add_command(report_group)
 main.add_command(sat_group)
 main.add_command(sensor_group)
