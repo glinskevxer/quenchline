@@ -43,8 +43,8 @@ class LoadRepository:
             connection.execute(
                 "INSERT OR REPLACE INTO load_record (lot, work_order, furnace_tag, "
                 "recipe_code, recipe_revision, state, weight_lb, charged_at, started_at, "
-                "finished_at, trace_source, trace_digest, trace_started) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "finished_at, trace_source, trace_digest, trace_started, trace_profile) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     str(load.lot),
                     str(load.work_order),
@@ -59,6 +59,7 @@ class LoadRepository:
                     load.trace_source or None,
                     load.trace_digest or None,
                     _stamp(load.trace.started) if load.trace is not None else None,
+                    load.trace_profile or None,
                 ),
             )
             connection.execute("DELETE FROM load_part WHERE lot = ?", (str(load.lot),))
@@ -84,8 +85,8 @@ class LoadRepository:
     def get(self, lot: LotNumber | str) -> Load:
         row = self.database.one(
             "SELECT lot, work_order, furnace_tag, recipe_code, recipe_revision, state, "
-            "weight_lb, charged_at, started_at, finished_at, trace_source, trace_digest "
-            "FROM load_record WHERE lot = ?",
+            "weight_lb, charged_at, started_at, finished_at, trace_source, trace_digest, "
+            "trace_profile FROM load_record WHERE lot = ?",
             (_key(lot),),
         )
         if row is None:
@@ -112,6 +113,7 @@ class LoadRepository:
             finished_at=_read(row["finished_at"]),
             trace_source=row["trace_source"] or "",
             trace_digest=row["trace_digest"] or "",
+            trace_profile=row["trace_profile"] or "",
         )
 
     def all(self) -> list[Load]:

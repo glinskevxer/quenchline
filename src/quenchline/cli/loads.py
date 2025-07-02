@@ -12,8 +12,18 @@ from ..identity import FurnaceTag, LotNumber, SensorTag, WorkOrder
 from ..ingest.pipeline import import_text
 from ..ingest.profiles import ProfileLibrary
 from ..ingest.quarantine import ImportLog
+from ..loads.deviation import evaluate
+from ..loads.disposition import Policy, decide
 from ..loads.record import Load, LoadState, PartLine
-from ..loads.reporting import load_header, parts_table
+from ..loads.reporting import (
+    channel_table,
+    deviation_table,
+    load_header,
+    parts_table,
+    run_summary,
+    segment_table,
+)
+from ..loads.segment import segment
 from ..measure import Mass, MassUnit
 from ..report.table import Align, Column, Table
 from .context import Context
@@ -117,7 +127,7 @@ def attach(context: Context, lot: str, path: Path, profile_name: str, tolerance:
     record = shop.loads.get(lot)
     started = record.started_at or datetime.combine(context.today, datetime.min.time())
     result = import_text(
-        path.name,
+        str(path.resolve()),
         path.read_text(),
         profile_name,
         started,
@@ -134,7 +144,9 @@ def attach(context: Context, lot: str, path: Path, profile_name: str, tolerance:
     others = [item for item in already if str(item.lot) != str(record.lot)]
     if others:
         raise ValidationError(f"that file is already on load {others[0].lot}", field="path")
-    shop.loads.save(record.attach(result.trace, digest=result.digest))
+    shop.loads.save(
+        record.attach(result.trace, digest=result.digest).with_profile(profile_name)
+    )
     click.echo(
         f"{record.lot} carries {path.name}, "
         f"{result.quarantine.accepted} row(s) over {len(result.trace.channels)} channel(s)"
@@ -218,6 +230,71 @@ def floor(context: Context) -> None:
         return
     for record in records:
         click.echo(f"{record.lot} {record.state.value} on {record.furnace}")
+
+
+@load_group.command("evaluate")
+@click.argument("lot")
+@click.option(
+    "--revision", default=None, help="grade against a revision other than the run one"
+)
+@click.option("--rework-limit", type=int, default=2)
+@click.option("--reworks", type=int, default=0, help="how many times this lot has been rerun")
+@click.option("--no-concession", is_flag=True, help="the order forbids concessions")
+@click.pass_obj
+def evaluate_load(
+    context: Context,
+    lot: str,
+    revision: str | None,
+    rework_limit: int,
+    reworks: int,
+    no_concession: bool,
+) -> None:
+    """Grade a load's trace against the cycle it claims to have run."""
+    shop = context.shop()
+    record = shop.loads.get(lot)
+    if not record.trace_source:
+        raise ValidationError(f"{record.lot} has no logger file attached", field="trace")
+    recipe = shop.recipes.get(record.recipe_code, revision or record.recipe_revision).recipe
+
+    path = Path(record.trace_source)
+    if not path.exists():
+        raise ValidationError(
+            f"the logger file for {record.lot} is no longer at {path}", field="trace"
+        )
+    result = import_text(
+        str(path),
+        path.read_text(),
+        record.trace_profile or "eurotherm 6100",
+        record.started_at or datetime.combine(context.today, datetime.min.time()),
+        ProfileLibrary.with_built_ins(),
+        ImportLog(),
+        tolerance=1.0,
+    )
+    trace = result.trace
+    if trace is None:
+        raise ValidationError(f"{path} no longer reads as a trace", field="trace")
+
+    segments = segment(recipe, trace)
+    findings = evaluate(segments, trace, load_sensors_expected=recipe.load_sensors)
+    decision = decide(
+        findings,
+        Policy(
+            allow_concession=not no_concession,
+            rework_limit=rework_limit,
+            reworks_so_far=reworks,
+        ),
+    )
+
+    click.echo(run_summary(record, findings, decision))
+    click.echo("")
+    click.echo(segment_table(segments).render())
+    if findings:
+        click.echo("")
+        click.echo(deviation_table(findings).render())
+    click.echo("")
+    click.echo(channel_table(trace).render())
+    if not decision.ships:
+        raise ValidationError(str(decision), field="load")
 
 
 @load_group.command("show")

@@ -286,6 +286,11 @@ MIGRATIONS: tuple[Migration, ...] = (
             "CREATE INDEX recipe_by_state ON recipe(code, state)",
         ),
     ),
+    Migration(
+        10,
+        "load trace profile",
+        ("ALTER TABLE load_record ADD COLUMN trace_profile TEXT",),
+    ),
 )
 
 

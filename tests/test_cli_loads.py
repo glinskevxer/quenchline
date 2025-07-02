@@ -224,3 +224,111 @@ def test_finishing_works_once_a_trace_is_attached(
     result = cli("load", "finish", "L25-0001", "--at", "2025-04-01T12:00:00")
     assert result.exit_code == 0
     assert "complete" in result.output
+
+
+GOOD_CYCLE = """Elapsed (min),Channel 1,Channel 2,Channel 3,Channel 4
+0,95,96,90,91
+30,1540,1541,1536,1537
+100,1552,1551,1549,1548
+"""
+
+SHORT_CYCLE = """Elapsed (min),Channel 1,Channel 2,Channel 3,Channel 4
+0,95,96,90,91
+30,1540,1541,1536,1537
+55,1552,1551,1549,1548
+"""
+
+
+def write_recipe(cli: Callable[..., Result], load_sensors: str = "0") -> None:
+    cli(
+        "recipe",
+        "add",
+        "HT-4140-Q",
+        "--revision",
+        "C",
+        "--title",
+        "4140 harden",
+        "--load-sensors",
+        load_sensors,
+        "--step",
+        "ramp:heat:setpoint=1550F,max_rate=4000",
+        "--step",
+        "soak:austenitise:setpoint=1550F,band=25,minimum=1h",
+    )
+    cli("recipe", "release", "HT-4140-Q", "--revision", "C")
+
+
+def run_with(cli: Callable[..., Result], tmp_path: Path, text: str) -> Result:
+    plan(cli)
+    cli("load", "charge", "L25-0001")
+    cli("load", "start", "L25-0001", "--at", "2025-04-01T07:00:00")
+    path = tmp_path / "run.csv"
+    path.write_text(text)
+    cli("load", "attach", "L25-0001", str(path), "--profile", "eurotherm 6100")
+    cli("load", "finish", "L25-0001", "--at", "2025-04-01T12:00:00")
+    return cli("load", "evaluate", "L25-0001")
+
+
+def test_a_clean_run_is_accepted(cli: Callable[..., Result], tmp_path: Path) -> None:
+    write_recipe(cli)
+    result = run_with(cli, tmp_path, GOOD_CYCLE)
+    assert result.exit_code == 0, result.output
+    assert "run summary" in result.output
+    assert "disposition  accept" in result.output
+    assert "cycle steps located on the trace" in result.output
+
+
+def test_a_short_soak_is_reported_and_blocks(
+    cli: Callable[..., Result], tmp_path: Path
+) -> None:
+    write_recipe(cli)
+    result = run_with(cli, tmp_path, SHORT_CYCLE)
+    assert result.exit_code == EXIT_VALIDATION
+    assert "short_soak" in result.output
+    assert "rework" in result.output
+
+
+def test_a_missing_load_sensor_is_reported(cli: Callable[..., Result], tmp_path: Path) -> None:
+    write_recipe(cli, load_sensors="4")
+    result = run_with(cli, tmp_path, GOOD_CYCLE)
+    assert "no_load_sensor" in result.output
+
+
+def test_evaluating_without_a_trace_is_refused(cli: Callable[..., Result]) -> None:
+    write_recipe(cli)
+    plan(cli)
+    result = cli("load", "evaluate", "L25-0001")
+    assert result.exit_code == EXIT_VALIDATION
+    assert "no logger file attached" in result.output
+
+
+def test_evaluating_against_a_missing_recipe(
+    cli: Callable[..., Result], tmp_path: Path
+) -> None:
+    plan(cli)
+    path = tmp_path / "run.csv"
+    path.write_text(GOOD_CYCLE)
+    cli("load", "attach", "L25-0001", str(path), "--profile", "eurotherm 6100")
+    result = cli("load", "evaluate", "L25-0001")
+    assert result.exit_code == EXIT_NOT_FOUND
+
+
+def test_a_deleted_logger_file_is_reported(cli: Callable[..., Result], tmp_path: Path) -> None:
+    write_recipe(cli)
+    plan(cli)
+    path = tmp_path / "run.csv"
+    path.write_text(GOOD_CYCLE)
+    cli("load", "attach", "L25-0001", str(path), "--profile", "eurotherm 6100")
+    path.unlink()
+    result = cli("load", "evaluate", "L25-0001")
+    assert result.exit_code == EXIT_VALIDATION
+    assert "no longer at" in result.output
+
+
+def test_the_concession_policy_changes_the_disposition(
+    cli: Callable[..., Result], tmp_path: Path
+) -> None:
+    write_recipe(cli)
+    run_with(cli, tmp_path, SHORT_CYCLE)
+    strict = cli("load", "evaluate", "L25-0001", "--no-concession", "--rework-limit", "0")
+    assert "review" in strict.output

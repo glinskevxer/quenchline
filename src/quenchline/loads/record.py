@@ -83,6 +83,7 @@ class Load:
     trace: Trace | None = None
     trace_source: str = ""
     trace_digest: str = ""
+    trace_profile: str = ""
     previous_state: LoadState | None = None
     notes: tuple[str, ...] = field(default_factory=tuple)
 
@@ -155,6 +156,14 @@ class Load:
         if self.state.is_final:
             raise StateError("a finished load cannot take a new trace", state=self.state.value)
         return replace(self, trace=trace, trace_source=trace.source, trace_digest=digest)
+
+    def with_profile(self, profile: str) -> Load:
+        """Remember which mapping profile read the attached file.
+
+        Without it, grading a load a month later means guessing which logger
+        wrote the file, and guessing wrong reads Celsius as Fahrenheit.
+        """
+        return replace(self, trace_profile=profile)
 
     def finish(self, at: datetime) -> Load:
         """Close the cycle. The trace has to be on the load already.
