@@ -291,6 +291,33 @@ MIGRATIONS: tuple[Migration, ...] = (
         "load trace profile",
         ("ALTER TABLE load_record ADD COLUMN trace_profile TEXT",),
     ),
+    Migration(
+        11,
+        "quench baths",
+        (
+            """
+            CREATE TABLE quench_bath (
+                identifier TEXT PRIMARY KEY,
+                medium_name TEXT NOT NULL,
+                medium_kind TEXT NOT NULL,
+                setpoint_f REAL NOT NULL,
+                band_f REAL NOT NULL,
+                minimum_agitation INTEGER NOT NULL,
+                concentration_low REAL,
+                concentration_high REAL,
+                melting_point_f REAL,
+                gallons REAL NOT NULL,
+                temperature_f REAL NOT NULL,
+                agitation INTEGER NOT NULL,
+                concentration REAL,
+                last_checked TEXT,
+                check_interval_count INTEGER NOT NULL,
+                check_interval_unit TEXT NOT NULL,
+                in_service INTEGER NOT NULL DEFAULT 1
+            )
+            """,
+        ),
+    ),
 )
 
 

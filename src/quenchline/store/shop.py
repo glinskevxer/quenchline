@@ -27,6 +27,7 @@ from .database import Database
 from .furnaces import FurnaceRepository
 from .loads import LoadRepository
 from .nonconformance import NcrRepository
+from .quench import BathRepository
 from .recipes import RecipeRepository
 from .sat import SatRepository
 from .sensors import SensorRepository
@@ -43,6 +44,7 @@ class Shop:
     reports: NcrRepository
     sat: SatRepository
     recipes: RecipeRepository
+    baths: BathRepository
 
     @classmethod
     def open(cls, path: Path | str) -> Shop:
@@ -63,6 +65,7 @@ class Shop:
             NcrRepository(database),
             SatRepository(database),
             RecipeRepository(database),
+            BathRepository(database),
         )
 
     def close(self) -> None:
@@ -118,6 +121,7 @@ class Shop:
             "nonconformances": self.reports.count(),
             "accuracy tests": self.sat.count(),
             "recipe revisions": self.recipes.count(),
+            "quench baths": self.baths.count(),
         }
 
     def open_ncr_count(self) -> int:
