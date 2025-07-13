@@ -23,6 +23,7 @@ from .furnaces import furnace_group
 from .ingest import ingest_group
 from .loads import load_group
 from .ncr import ncr_group
+from .quench import bath_group
 from .recipes import recipe_group
 from .report import report_group
 from .sat import sat_group
@@ -97,6 +98,7 @@ def main(
 
 
 main.add_command(analysis_group)
+main.add_command(bath_group)
 main.add_command(db_group)
 main.add_command(furnace_group)
 main.add_command(ingest_group)

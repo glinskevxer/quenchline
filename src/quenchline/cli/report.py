@@ -122,6 +122,7 @@ def _board(context: Context, grace: int) -> Board:
         context.today,
         sensors=register,
         sat=_sat_histories(context),
+        baths=shop.baths.all(),
         grace=grace,
     )
 
