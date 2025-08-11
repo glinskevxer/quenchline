@@ -158,3 +158,8 @@ def test_the_shop_wires_the_recipe_and_bath_repositories(shop: Shop) -> None:
     counts = shop.counts()
     assert counts["recipe revisions"] == 0
     assert counts["quench baths"] == 0
+
+
+def test_the_shop_wires_the_instrument_repository(shop: Shop) -> None:
+    assert shop.instruments.database is shop.database
+    assert shop.counts()["instruments"] == 0

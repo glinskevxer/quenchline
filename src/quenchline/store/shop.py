@@ -25,6 +25,7 @@ from ..loads.record import Load, LoadState
 from ..nonconformance.record import Nonconformance
 from .database import Database
 from .furnaces import FurnaceRepository
+from .instruments import InstrumentRepository
 from .loads import LoadRepository
 from .nonconformance import NcrRepository
 from .quench import BathRepository
@@ -45,6 +46,7 @@ class Shop:
     sat: SatRepository
     recipes: RecipeRepository
     baths: BathRepository
+    instruments: InstrumentRepository
 
     @classmethod
     def open(cls, path: Path | str) -> Shop:
@@ -66,6 +68,7 @@ class Shop:
             SatRepository(database),
             RecipeRepository(database),
             BathRepository(database),
+            InstrumentRepository(database),
         )
 
     def close(self) -> None:
@@ -122,6 +125,7 @@ class Shop:
             "accuracy tests": self.sat.count(),
             "recipe revisions": self.recipes.count(),
             "quench baths": self.baths.count(),
+            "instruments": self.instruments.count(),
         }
 
     def open_ncr_count(self) -> int:

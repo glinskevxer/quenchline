@@ -318,6 +318,55 @@ MIGRATIONS: tuple[Migration, ...] = (
             """,
         ),
     ),
+    Migration(
+        12,
+        "instruments and calibrations",
+        (
+            """
+            CREATE TABLE instrument (
+                tag TEXT PRIMARY KEY,
+                function TEXT NOT NULL,
+                span_low_f REAL NOT NULL,
+                span_high_f REAL NOT NULL,
+                accuracy_percent REAL NOT NULL,
+                accuracy_basis TEXT NOT NULL,
+                accuracy_floor_f REAL NOT NULL DEFAULT 0,
+                resolution_f REAL NOT NULL,
+                readout TEXT NOT NULL,
+                interval_count INTEGER NOT NULL,
+                interval_unit TEXT NOT NULL,
+                due_rule TEXT NOT NULL,
+                status TEXT NOT NULL,
+                make TEXT NOT NULL DEFAULT '',
+                model TEXT NOT NULL DEFAULT '',
+                serial TEXT NOT NULL DEFAULT ''
+            )
+            """,
+            """
+            CREATE TABLE instrument_calibration (
+                number TEXT PRIMARY KEY,
+                instrument_tag TEXT NOT NULL
+                    REFERENCES instrument(tag) ON DELETE CASCADE,
+                performed TEXT NOT NULL,
+                tolerance_f REAL NOT NULL,
+                technician TEXT NOT NULL DEFAULT '',
+                standard TEXT NOT NULL DEFAULT ''
+            )
+            """,
+            """
+            CREATE TABLE instrument_check (
+                calibration_number TEXT NOT NULL
+                    REFERENCES instrument_calibration(number) ON DELETE CASCADE,
+                nominal_f REAL NOT NULL,
+                as_found_f REAL NOT NULL,
+                as_left_f REAL,
+                PRIMARY KEY (calibration_number, nominal_f)
+            )
+            """,
+            "CREATE INDEX calibration_by_instrument "
+            "ON instrument_calibration(instrument_tag, performed)",
+        ),
+    ),
 )
 
 
