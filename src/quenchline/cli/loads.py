@@ -297,6 +297,17 @@ def evaluate_load(
         raise ValidationError(str(decision), field="load")
 
 
+@load_group.command("certify")
+@click.argument("lot")
+@click.pass_obj
+def certify(context: Context, lot: str) -> None:
+    """Certify a complete load."""
+    shop = context.shop()
+    moved = shop.loads.get(lot).certify()
+    shop.loads.save(moved)
+    click.echo(f"{moved.lot} certified")
+
+
 @load_group.command("show")
 @click.argument("lot")
 @click.pass_obj

@@ -7,6 +7,7 @@ from datetime import date
 import click
 
 from ..errors import ValidationError
+from ..report.certificate import CertificateHeader, certificate_text
 from ..report.compliance import assess, summary_header, summary_table
 from ..report.kpi import Period, comparison_table, rollup, rollup_block
 from ..sat.schedule import SatHistory
@@ -92,6 +93,44 @@ def throughput(context: Context, start: str, end: str) -> None:
     click.echo(f"{len(certified)} certified load(s) between {first} and {last}")
     for record in certified:
         click.echo(f"  {record.lot} on {record.furnace} to {record.recipe}")
+
+
+@report_group.command("certificate")
+@click.argument("lot")
+@click.option("--number", default=None, help="override the generated certificate number")
+@click.option("--customer", default="")
+@click.option("--customer-order", default="")
+@click.option("--specification", default="")
+@click.option("--signatory", default="")
+@click.pass_obj
+def certificate(
+    context: Context,
+    lot: str,
+    number: str | None,
+    customer: str,
+    customer_order: str,
+    specification: str,
+    signatory: str,
+) -> None:
+    """Print the certificate of conformance for a certified load."""
+    shop = context.shop()
+    record = shop.loads.get(lot)
+    recipe = shop.recipes.get(record.recipe_code, record.recipe_revision).recipe
+    header = CertificateHeader(
+        number=number or _certificate_number(context, record.lot),
+        issued_on=context.today,
+        shop_name=context.settings.shop_name,
+        customer=customer,
+        customer_order=customer_order,
+        specification=specification,
+        signatory=signatory,
+    )
+    click.echo(certificate_text(header, record, recipe))
+
+
+def _certificate_number(context: Context, lot: object) -> str:
+    """The shop's own certificate numbering, prefix plus the lot it covers."""
+    return f"{context.settings.certificate_prefix}-{lot}"
 
 
 @report_group.command("open-work")
