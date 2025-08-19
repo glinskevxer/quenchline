@@ -159,6 +159,7 @@ def _board(context: Context, grace: int) -> Board:
         register.ledgers[str(couple.tag)] = shop.sensors.ledger(couple.tag)
     return Board.build(
         context.today,
+        instruments=shop.instruments.register(),
         sensors=register,
         sat=_sat_histories(context),
         baths=shop.baths.all(),

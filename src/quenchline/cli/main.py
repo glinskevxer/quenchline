@@ -22,6 +22,7 @@ from .db import db_group
 from .furnaces import furnace_group
 from .hardness import hardness_group
 from .ingest import ingest_group
+from .instruments import instrument_group
 from .loads import load_group
 from .ncr import ncr_group
 from .quench import bath_group
@@ -104,6 +105,7 @@ main.add_command(db_group)
 main.add_command(furnace_group)
 main.add_command(hardness_group)
 main.add_command(ingest_group)
+main.add_command(instrument_group)
 main.add_command(load_group)
 main.add_command(ncr_group)
 main.add_command(recipe_group)
