@@ -10,10 +10,9 @@ from ..errors import ValidationError
 from ..report.certificate import CertificateHeader, certificate_text
 from ..report.compliance import assess, summary_header, summary_table
 from ..report.kpi import Period, comparison_table, rollup, rollup_block
-from ..sat.schedule import SatHistory
 from ..schedule.board import Board, board_summary, board_table
-from ..sensors.register import SensorRegister
 from .context import Context, parse_day
+from .registers import board as build_board
 
 
 @click.group("report")
@@ -27,7 +26,7 @@ def report_group() -> None:
 @click.pass_obj
 def schedule(context: Context, grace: int, attention_only: bool) -> None:
     """What the shop owes, worst first."""
-    board = _board(context, grace)
+    board = build_board(context, grace)
     click.echo(board_summary(board, context.today))
     click.echo("")
     if attention_only:
@@ -43,7 +42,7 @@ def compliance(context: Context, grace: int, ncr_age_limit: int) -> None:
     """The answers an audit asks for."""
     shop = context.shop()
     summary = assess(
-        _board(context, grace),
+        build_board(context, grace),
         shop.reports.all(),
         context.today,
         ncr_age_limit=ncr_age_limit,
@@ -148,32 +147,6 @@ def open_work(context: Context) -> None:
         click.echo(f"  {record.lot} {record.state.value}")
     for report in reports:
         click.echo(f"  {report.number} {report.stage.value} against {report.reference}")
-
-
-def _board(context: Context, grace: int) -> Board:
-    """Everything due, gathered from the registers that actually hold the dates."""
-    shop = context.shop()
-    register = SensorRegister()
-    for couple in shop.sensors.all():
-        register.add(couple)
-        register.ledgers[str(couple.tag)] = shop.sensors.ledger(couple.tag)
-    return Board.build(
-        context.today,
-        instruments=shop.instruments.register(),
-        sensors=register,
-        sat=_sat_histories(context),
-        baths=shop.baths.all(),
-        grace=grace,
-    )
-
-
-def _sat_histories(context: Context) -> list[SatHistory]:
-    """A judged system accuracy history per furnace on the register."""
-    shop = context.shop()
-    return [
-        shop.sat.history(furnace.tag, furnace.furnace_class, furnace.instrumentation)
-        for furnace in shop.furnaces.all()
-    ]
 
 
 def _plus(day: date, days: int) -> date:

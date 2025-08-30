@@ -8,13 +8,14 @@ from ..identity import require_sensor_tag
 from ..report.table import render_kv
 from ..sensors.calibration import Certificate, Convention
 from ..sensors.record import Construction, SensorRole, Thermocouple
-from ..sensors.register import SensorRegister, calibration_interval
+from ..sensors.register import calibration_interval
 from ..sensors.reporting import eligibility_table, register_summary, register_table
 from ..sensors.types import ThermocoupleType, ToleranceClass, initial_tolerance
 from ..sensors.usage import UsageEvent, assess
 from ..temperature import Scale, Temperature
 from ..timespan import Duration
 from .context import Context, parse_day
+from .registers import sensor_register as _register
 
 
 @click.group("sensor")
@@ -200,12 +201,3 @@ def _point(text: str) -> tuple[float, float]:
         return (float(nominal), float(correction))
     except ValueError:
         raise click.BadParameter(f"{text!r} is not a nominal:correction pair") from None
-
-
-def _register(context: Context) -> SensorRegister:
-    register = SensorRegister()
-    shop = context.shop()
-    for couple in shop.sensors.all():
-        register.add(couple)
-        register.ledgers[str(couple.tag)] = shop.sensors.ledger(couple.tag)
-    return register

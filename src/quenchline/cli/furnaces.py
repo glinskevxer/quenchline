@@ -7,7 +7,6 @@ import click
 from ..errors import ValidationError
 from ..furnaces.classes import FurnaceClass, InstrumentationType, sat_interval, tus_interval
 from ..furnaces.record import Furnace
-from ..furnaces.register import FurnaceRegister
 from ..furnaces.reporting import capability_summary, deficiency_table, furnace_table
 from ..furnaces.zones import QualifiedRange, WorkZone, survey_sensor_count
 from ..identity import FurnaceTag, require_sensor_tag
@@ -16,6 +15,7 @@ from ..report.table import render_kv
 from ..sensors.record import SensorRole
 from ..temperature import Scale, Temperature
 from .context import Context
+from .registers import furnace_register as _register
 
 
 @click.group("furnace")
@@ -175,10 +175,3 @@ def capability(context: Context, at_text: str) -> None:
 def deficiencies(context: Context) -> None:
     """Furnaces that do not carry what their type claims."""
     click.echo(deficiency_table(_register(context)).render())
-
-
-def _register(context: Context) -> FurnaceRegister:
-    register = FurnaceRegister()
-    for furnace in context.shop().furnaces.all():
-        register.add(furnace)
-    return register

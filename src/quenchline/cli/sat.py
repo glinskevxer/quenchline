@@ -11,6 +11,7 @@ from ..sat.reporting import due_board, failure_notice, history_summary, result_t
 from ..sat.schedule import SatHistory
 from ..temperature import Scale, Temperature, TemperatureDelta
 from .context import Context, parse_day
+from .registers import sat_histories
 
 
 @click.group("sat")
@@ -116,8 +117,7 @@ def history(context: Context, furnace: str) -> None:
 @click.pass_obj
 def due(context: Context, grace: int) -> None:
     """When every furnace's next test is due."""
-    shop = context.shop()
-    histories = [_history(context, furnace.tag) for furnace in shop.furnaces.all()]
+    histories = sat_histories(context)
     if not histories:
         click.echo("no furnaces on the register")
         return
