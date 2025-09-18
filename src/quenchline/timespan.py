@@ -13,6 +13,7 @@ from datetime import timedelta
 from typing import Final
 
 from .errors import ParseError, ValidationError
+from .numeric import require_finite
 
 _CLOCK_RE: Final = re.compile(r"^(?P<h>\d+):(?P<m>[0-5]?\d)(?::(?P<s>[0-5]?\d))?$")
 _COMPOUND_RE: Final = re.compile(
@@ -29,6 +30,7 @@ class Duration:
     seconds: float
 
     def __post_init__(self) -> None:
+        require_finite(self.seconds, "seconds")
         if self.seconds < 0:
             raise ValidationError("duration cannot be negative", field="seconds")
 

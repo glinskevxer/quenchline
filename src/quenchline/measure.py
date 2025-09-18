@@ -17,6 +17,7 @@ from enum import Enum
 from typing import Final
 
 from .errors import ParseError, ValidationError
+from .numeric import require_finite
 
 LB_PER_KG: Final = 2.2046226218487757
 MM_PER_INCH: Final = 25.4
@@ -63,6 +64,7 @@ class Mass:
     unit: MassUnit
 
     def __post_init__(self) -> None:
+        require_finite(self.value, "mass")
         if self.value < 0:
             raise ValidationError("mass cannot be negative", field="mass")
 
@@ -127,6 +129,7 @@ class Length:
     unit: LengthUnit
 
     def __post_init__(self) -> None:
+        require_finite(self.value, "length")
         if self.value < 0:
             raise ValidationError("length cannot be negative", field="length")
 
@@ -166,6 +169,7 @@ class Volume:
     cubic_feet: float
 
     def __post_init__(self) -> None:
+        require_finite(self.cubic_feet, "volume")
         if self.cubic_feet < 0:
             raise ValidationError("volume cannot be negative", field="volume")
 

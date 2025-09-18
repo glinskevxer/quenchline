@@ -26,6 +26,22 @@ from .errors import OutOfRangeError, ValidationError
 _EPS = 1e-9
 
 
+def require_finite(value: float, field: str) -> float:
+    """Refuse a value that is not a real number.
+
+    ``float("nan")`` compares false against every bound, so a naive range check
+    lets it straight through and it then poisons every sum it touches. A NaN
+    soak time reads as zero minutes on the report and as "not less than the
+    minimum" to the comparison that was supposed to catch it, which is the worst
+    of both. Every value that arrives from parsing goes through here.
+    """
+    if math.isnan(value):
+        raise ValidationError("not a number", field=field)
+    if math.isinf(value):
+        raise ValidationError("cannot be infinite", field=field)
+    return value
+
+
 class Extrapolation(Enum):
     """What a curve does when asked for an x outside its range."""
 

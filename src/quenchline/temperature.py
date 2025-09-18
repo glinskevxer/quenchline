@@ -22,6 +22,7 @@ from enum import Enum
 from typing import Final
 
 from .errors import OutOfRangeError, ParseError, ValidationError
+from .numeric import require_finite
 
 ABSOLUTE_ZERO_C: Final = -273.15
 ABSOLUTE_ZERO_F: Final = -459.67
@@ -59,6 +60,9 @@ class TemperatureDelta:
 
     magnitude: float
     scale: Scale
+
+    def __post_init__(self) -> None:
+        require_finite(self.magnitude, "delta")
 
     def to(self, scale: Scale) -> TemperatureDelta:
         if scale is self.scale:
@@ -128,6 +132,7 @@ class Temperature:
     scale: Scale
 
     def __post_init__(self) -> None:
+        require_finite(self.value, "temperature")
         floor = ABSOLUTE_ZERO_F if self.scale is Scale.FAHRENHEIT else ABSOLUTE_ZERO_C
         if self.value < floor - 1e-9:
             raise OutOfRangeError(
