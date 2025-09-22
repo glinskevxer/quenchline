@@ -23,6 +23,7 @@ from pathlib import Path
 from ..identity import FurnaceTag
 from ..loads.record import Load, LoadState
 from ..nonconformance.record import Nonconformance
+from .audit import AuditTrail
 from .database import Database
 from .furnaces import FurnaceRepository
 from .instruments import InstrumentRepository
@@ -47,6 +48,7 @@ class Shop:
     recipes: RecipeRepository
     baths: BathRepository
     instruments: InstrumentRepository
+    audit: AuditTrail
 
     @classmethod
     def open(cls, path: Path | str) -> Shop:
@@ -69,6 +71,7 @@ class Shop:
             RecipeRepository(database),
             BathRepository(database),
             InstrumentRepository(database),
+            AuditTrail(database),
         )
 
     def close(self) -> None:
@@ -126,6 +129,7 @@ class Shop:
             "recipe revisions": self.recipes.count(),
             "quench baths": self.baths.count(),
             "instruments": self.instruments.count(),
+            "audit entries": self.audit.count(),
         }
 
     def open_ncr_count(self) -> int:

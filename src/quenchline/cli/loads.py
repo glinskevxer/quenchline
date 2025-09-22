@@ -162,6 +162,7 @@ def hold(context: Context, lot: str, reason: str) -> None:
     shop = context.shop()
     moved = shop.loads.get(lot).hold(reason)
     shop.loads.save(moved)
+    shop.audit.record("held", "load", str(moved.lot), detail=reason)
     click.echo(f"{moved.lot} held: {reason}")
 
 
@@ -174,6 +175,7 @@ def reject(context: Context, lot: str, reason: str) -> None:
     shop = context.shop()
     moved = shop.loads.get(lot).reject(reason)
     shop.loads.save(moved)
+    shop.audit.record("rejected", "load", str(moved.lot), detail=reason)
     click.echo(f"{moved.lot} rejected: {reason}")
 
 
@@ -305,6 +307,7 @@ def certify(context: Context, lot: str) -> None:
     shop = context.shop()
     moved = shop.loads.get(lot).certify()
     shop.loads.save(moved)
+    shop.audit.record("certified", "load", str(moved.lot), detail=moved.recipe)
     click.echo(f"{moved.lot} certified")
 
 

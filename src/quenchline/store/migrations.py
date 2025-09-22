@@ -367,6 +367,25 @@ MIGRATIONS: tuple[Migration, ...] = (
             "ON instrument_calibration(instrument_tag, performed)",
         ),
     ),
+    Migration(
+        13,
+        "audit trail",
+        (
+            """
+            CREATE TABLE audit_entry (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                at TEXT NOT NULL,
+                actor TEXT NOT NULL DEFAULT '',
+                action TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                reference TEXT NOT NULL,
+                detail TEXT NOT NULL DEFAULT ''
+            )
+            """,
+            "CREATE INDEX audit_by_reference ON audit_entry(subject, reference)",
+            "CREATE INDEX audit_by_time ON audit_entry(at)",
+        ),
+    ),
 )
 
 
