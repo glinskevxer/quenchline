@@ -7,13 +7,14 @@ from pathlib import Path
 import click
 
 from ..errors import ValidationError
-from ..furnaces.zones import survey_sensor_count
+from ..furnaces.zones import QualifiedRange, survey_sensor_count
 from ..identity import FurnaceTag
 from ..ingest.survey import load_layout, read_setpoint
 from ..report.table import render_kv
 from ..temperature import Scale, Temperature
 from ..tus.dropout import find_dropouts
 from ..tus.evaluate import evaluate
+from ..tus.history import SurveyOutcome
 from ..tus.reporting import (
     dropout_note,
     excursion_table,
@@ -134,9 +135,19 @@ def evaluate_survey(
             click.echo(f"at {data.setpoint.format()}")
             click.echo(dropout_note(report))
 
+    outcome = SurveyOutcome(
+        number=number,
+        performed=survey.performed,
+        passed=judged.is_pass,
+        passing_setpoints=tuple(s.setpoint for s in judged.setpoints if s.is_pass),
+        failing_setpoints=tuple(s.setpoint for s in judged.setpoints if not s.is_pass),
+    )
+    shop.surveys.save(outcome, record.tag, zone)
+
     if judged.is_pass:
         low = min(survey.temperatures, key=lambda t: t.degf)
         high = max(survey.temperatures, key=lambda t: t.degf)
+        shop.furnaces.save(record.qualify(QualifiedRange(low, high)))
         click.echo("")
         click.echo(f"passed, qualifies {record.tag} from {low.format()} to {high.format()}")
     else:

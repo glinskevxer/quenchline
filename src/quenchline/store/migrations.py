@@ -386,6 +386,31 @@ MIGRATIONS: tuple[Migration, ...] = (
             "CREATE INDEX audit_by_time ON audit_entry(at)",
         ),
     ),
+    Migration(
+        14,
+        "survey outcomes",
+        (
+            """
+            CREATE TABLE survey_outcome (
+                number TEXT PRIMARY KEY,
+                furnace_tag TEXT NOT NULL,
+                zone TEXT NOT NULL,
+                performed TEXT NOT NULL,
+                passed INTEGER NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE survey_setpoint (
+                survey_number TEXT NOT NULL
+                    REFERENCES survey_outcome(number) ON DELETE CASCADE,
+                setpoint_f REAL NOT NULL,
+                passed INTEGER NOT NULL,
+                PRIMARY KEY (survey_number, setpoint_f)
+            )
+            """,
+            "CREATE INDEX survey_by_zone ON survey_outcome(furnace_tag, zone, performed)",
+        ),
+    ),
 )
 
 

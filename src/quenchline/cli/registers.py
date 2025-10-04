@@ -17,6 +17,7 @@ from ..instruments.register import InstrumentRegister
 from ..sat.schedule import SatHistory
 from ..schedule.board import Board
 from ..sensors.register import SensorRegister
+from ..tus.history import SurveyHistory
 from .context import Context
 
 
@@ -50,6 +51,20 @@ def sat_histories(context: Context) -> list[SatHistory]:
     ]
 
 
+def survey_histories(context: Context) -> list[SurveyHistory]:
+    """A survey history per furnace zone that has ever been surveyed."""
+    shop = context.shop()
+    histories: list[SurveyHistory] = []
+    for tag, zone in shop.surveys.zones():
+        furnace = shop.furnaces.get(tag)
+        histories.append(
+            shop.surveys.history(
+                furnace.tag, zone, furnace.furnace_class, furnace.instrumentation
+            )
+        )
+    return histories
+
+
 def board(context: Context, grace: int = 0) -> Board:
     """Everything due, gathered from every register that holds a date."""
     shop = context.shop()
@@ -58,6 +73,7 @@ def board(context: Context, grace: int = 0) -> Board:
         instruments=instrument_register(context),
         sensors=sensor_register(context),
         sat=sat_histories(context),
+        surveys=survey_histories(context),
         baths=shop.baths.all(),
         grace=grace,
     )

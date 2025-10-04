@@ -299,3 +299,89 @@ def test_a_dropout_is_reported(
     )
     assert "survey sensor losses" in result.output
     assert "survey stands  no" in result.output
+
+
+def test_a_passing_survey_qualifies_the_furnace_and_is_kept(
+    cli: Callable[..., Result], layout_file: Path, tmp_path: Path
+) -> None:
+    commission(cli)
+    low = tmp_path / "low.csv"
+    high = tmp_path / "high.csv"
+    low.write_text(readings(1200.0))
+    high.write_text(readings(1700.0))
+    evaluated = cli(
+        "survey",
+        "evaluate",
+        "HT-04",
+        "--number",
+        "TUS-25-020",
+        "--zone",
+        "main",
+        "--layout",
+        str(layout_file),
+        "--reading",
+        f"1200F={low}",
+        "--reading",
+        f"1700F={high}",
+        "--on",
+        "2025-06-01",
+    )
+    assert evaluated.exit_code == 0, evaluated.output
+    shown = cli("furnace", "show", "HT-04")
+    assert "1200 F to 1700 F" in shown.output
+    board = cli("report", "schedule")
+    assert "uniformity_survey" in board.output
+    assert "HT-04 main" in board.output
+
+
+def test_a_failed_survey_is_kept_and_leaves_the_zone_unqualified(
+    cli: Callable[..., Result], layout_file: Path, tmp_path: Path
+) -> None:
+    commission(cli)
+    path = tmp_path / "wide.csv"
+    path.write_text(readings(1550.0, spread=30.0))
+    cli(
+        "survey",
+        "evaluate",
+        "HT-04",
+        "--number",
+        "TUS-25-021",
+        "--zone",
+        "main",
+        "--layout",
+        str(layout_file),
+        "--reading",
+        f"1550F={path}",
+        "--on",
+        "2025-06-01",
+    )
+    board = cli("report", "schedule")
+    assert "uniformity_survey" in board.output
+    compliance = cli("report", "compliance")
+    assert "surveys in date" in compliance.output
+
+
+def test_an_overdue_survey_breaks_compliance(
+    cli: Callable[..., Result], layout_file: Path, tmp_path: Path
+) -> None:
+    commission(cli)
+    path = tmp_path / "run.csv"
+    path.write_text(readings(1550.0))
+    cli(
+        "survey",
+        "evaluate",
+        "HT-04",
+        "--number",
+        "TUS-24-001",
+        "--zone",
+        "main",
+        "--layout",
+        str(layout_file),
+        "--reading",
+        f"1550F={path}",
+        "--on",
+        "2023-06-01",
+    )
+    result = cli("report", "compliance")
+    assert "overall     exception" in result.output
+    assert "HT-04 main" in result.output

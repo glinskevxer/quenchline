@@ -33,6 +33,7 @@ from .quench import BathRepository
 from .recipes import RecipeRepository
 from .sat import SatRepository
 from .sensors import SensorRepository
+from .surveys import SurveyRepository
 
 
 @dataclass
@@ -49,6 +50,7 @@ class Shop:
     baths: BathRepository
     instruments: InstrumentRepository
     audit: AuditTrail
+    surveys: SurveyRepository
 
     @classmethod
     def open(cls, path: Path | str) -> Shop:
@@ -72,6 +74,7 @@ class Shop:
             BathRepository(database),
             InstrumentRepository(database),
             AuditTrail(database),
+            SurveyRepository(database),
         )
 
     def close(self) -> None:
@@ -130,6 +133,7 @@ class Shop:
             "quench baths": self.baths.count(),
             "instruments": self.instruments.count(),
             "audit entries": self.audit.count(),
+            "surveys": self.surveys.count(),
         }
 
     def open_ncr_count(self) -> int:
