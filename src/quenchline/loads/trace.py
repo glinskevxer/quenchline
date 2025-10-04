@@ -18,9 +18,11 @@ argument with a stated default rather than a constant buried in a function.
 
 from __future__ import annotations
 
+from bisect import bisect_left
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from functools import cached_property
 
 from ..errors import NotFoundError, ValidationError
 from ..temperature import Temperature
@@ -85,7 +87,12 @@ class Gap:
 
 @dataclass(frozen=True)
 class Channel:
-    """One channel of a trace."""
+    """One channel of a trace.
+
+    Frozen, so the derived views below can be cached: a trace is read many times
+    and never edited, and rebuilding the reading list on every lookup is most of
+    what makes grading a long run slow.
+    """
 
     key: str
     role: ChannelRole
@@ -113,7 +120,7 @@ class Channel:
         )
         return cls(key, role, samples)
 
-    @property
+    @cached_property
     def readings(self) -> tuple[Sample, ...]:
         return tuple(s for s in self.samples if s.is_reading)
 
@@ -134,50 +141,63 @@ class Channel:
         return bool(self.readings)
 
     def gaps(self) -> tuple[Gap, ...]:
-        """Every interval between consecutive readings that has no data in it."""
+        """Every interval between consecutive readings that has no data in it.
+
+        One pass. The obvious version rescans the whole channel for every
+        reading looking for dropouts in between, which is fine on the four
+        sample traces in the tests and takes minutes on a real twelve hour run
+        logged every five seconds.
+        """
         found: list[Gap] = []
         previous: Sample | None = None
+        missing_since_previous = False
         for sample in self.samples:
             if not sample.is_reading:
+                if previous is not None:
+                    missing_since_previous = True
                 continue
-            if previous is not None:
-                missing = [
-                    s
-                    for s in self.samples
-                    if previous.elapsed.seconds < s.elapsed.seconds < sample.elapsed.seconds
-                    and not s.is_reading
-                ]
-                if missing:
-                    found.append(Gap(previous.elapsed, sample.elapsed))
+            if previous is not None and missing_since_previous:
+                found.append(Gap(previous.elapsed, sample.elapsed))
             previous = sample
+            missing_since_previous = False
         return tuple(found)
 
     def unbridgeable(self, limit: Duration = DEFAULT_BRIDGE) -> tuple[Gap, ...]:
         return tuple(g for g in self.gaps() if not g.bridgeable(limit))
 
     def at(self, elapsed: Duration, *, bridge: Duration = DEFAULT_BRIDGE) -> Temperature | None:
-        """The reading at one moment, interpolated across a bridgeable gap."""
+        """The reading at one moment, interpolated across a bridgeable gap.
+
+        Binary search rather than a walk, because the deviation engine asks this
+        once per step per channel and a walk turns that into a scan of the whole
+        trace every time.
+        """
         readings = self.readings
         if not readings:
             return None
-        if elapsed.seconds < readings[0].elapsed.seconds:
+        wanted = elapsed.seconds
+        if wanted < readings[0].elapsed.seconds or wanted > readings[-1].elapsed.seconds:
             return None
-        if elapsed.seconds > readings[-1].elapsed.seconds:
+        index = bisect_left(self._reading_times, wanted)
+        sample = readings[index]
+        if abs(sample.elapsed.seconds - wanted) < 1e-9:
+            return sample.temperature()
+        previous = readings[index - 1]
+        gap = Gap(previous.elapsed, sample.elapsed)
+        if not gap.bridgeable(bridge) and self._is_a_hole(gap):
             return None
-        previous = readings[0]
-        for sample in readings:
-            if abs(sample.elapsed.seconds - elapsed.seconds) < 1e-9:
-                return sample.temperature()
-            if sample.elapsed.seconds > elapsed.seconds:
-                gap = Gap(previous.elapsed, sample.elapsed)
-                if not gap.bridgeable(bridge) and self._is_a_hole(gap):
-                    return None
-                return _interpolate(previous, sample, elapsed)
-            previous = sample
-        return previous.temperature()
+        return _interpolate(previous, sample, elapsed)
+
+    @cached_property
+    def _reading_times(self) -> list[float]:
+        return [sample.elapsed.seconds for sample in self.readings]
 
     def _is_a_hole(self, gap: Gap) -> bool:
-        return any(g.start == gap.start and g.end == gap.end for g in self.gaps())
+        return any(g.start == gap.start and g.end == gap.end for g in self._gap_index)
+
+    @cached_property
+    def _gap_index(self) -> tuple[Gap, ...]:
+        return self.gaps()
 
     def peak(self) -> Temperature | None:
         readings = self.readings
