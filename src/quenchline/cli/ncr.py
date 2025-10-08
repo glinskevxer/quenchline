@@ -42,6 +42,12 @@ def raise_report(
         summary=summary,
     )
     shop.reports.insert(report)
+    shop.audit.record(
+        "raised nonconformance",
+        report.subject.value,
+        report.reference,
+        detail=report.number,
+    )
     click.echo(f"raised {report}")
 
 
@@ -102,6 +108,9 @@ def close(context: Context, number: str, closed_on: str | None) -> None:
     shop = context.shop()
     report = shop.reports.get(number).close(parse_day(closed_on, context.today))
     shop.reports.save(report)
+    shop.audit.record(
+        "closed nonconformance", report.subject.value, report.reference, detail=report.number
+    )
     click.echo(f"{report.number} closed")
 
 

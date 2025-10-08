@@ -83,18 +83,25 @@ class QuenchlineGroup(click.Group):
     default=None,
     help="the date to report as of, YYYY-MM-DD",
 )
+@click.option(
+    "--actor",
+    default="",
+    help="who is running this, recorded on the audit trail",
+)
 @click.pass_context
 def main(
     ctx: click.Context,
     settings_path: Path | None,
     database: Path | None,
     today: str | None,
+    actor: str,
 ) -> None:
     """Pyrometry and process records for a heat treating shop."""
     context = Context.build(
         settings_path=settings_path,
         database=database,
         today=parse_day(today, date.today()),
+        actor=actor,
     )
     ctx.obj = context
     ctx.call_on_close(context.close)
@@ -127,6 +134,7 @@ def show_settings(context: Context) -> None:
     rows: list[tuple[str, object]] = [
         ("today", context.today.isoformat()),
         ("database in use", str(context.database_path)),
+        ("actor", context.actor or None),
     ]
     rows.extend(sorted((key, _render(value)) for key, value in values.items()))
     click.echo(render_kv(rows, title="settings"))

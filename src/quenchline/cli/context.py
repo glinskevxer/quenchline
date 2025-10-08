@@ -29,6 +29,7 @@ class Context:
     settings: Settings
     today: date
     database_path: Path
+    actor: str = ""
     _shop: Shop | None = field(default=None, repr=False)
 
     @classmethod
@@ -39,15 +40,17 @@ class Context:
         database: Path | None = None,
         today: date | None = None,
         environ: dict[str, str] | None = None,
+        actor: str = "",
     ) -> Context:
         settings = Settings.load(settings_path, environ=environ)
         path = database if database is not None else settings.database
-        return cls(settings, today or date.today(), path)
+        return cls(settings, today or date.today(), path, actor)
 
     def shop(self) -> Shop:
-        """Open the database, once."""
+        """Open the database, once, with this run's actor on the audit trail."""
         if self._shop is None:
             self._shop = Shop.open(self.database_path)
+            self._shop.audit.actor = self.actor
         return self._shop
 
     def close(self) -> None:

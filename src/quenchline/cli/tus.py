@@ -143,6 +143,12 @@ def evaluate_survey(
         failing_setpoints=tuple(s.setpoint for s in judged.setpoints if not s.is_pass),
     )
     shop.surveys.save(outcome, record.tag, zone)
+    shop.audit.record(
+        "recorded survey",
+        "furnace",
+        str(record.tag),
+        detail=f"{number} {'passed' if judged.is_pass else 'failed'} on zone {zone}",
+    )
 
     if judged.is_pass:
         low = min(survey.temperatures, key=lambda t: t.degf)

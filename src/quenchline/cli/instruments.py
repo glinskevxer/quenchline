@@ -132,6 +132,12 @@ def calibrate(
     )
     previous = instrument.latest
     shop.instruments.file(calibration)
+    shop.audit.record(
+        "calibrated",
+        "instrument",
+        str(instrument.tag),
+        detail=f"{number} {calibration.verdict.value}",
+    )
 
     click.echo(f"{number} on {instrument.tag}: {calibration.verdict.value}")
     window = suspect_window(calibration, previous)

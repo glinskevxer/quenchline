@@ -91,6 +91,12 @@ def record(
     history = _history(context, record_furnace.tag)
     judged = history.file(test)
     shop.sat.insert(test)
+    shop.audit.record(
+        "recorded accuracy test",
+        "furnace",
+        str(record_furnace.tag),
+        detail=f"{number} {judged.verdict.value}",
+    )
     click.echo(str(judged))
     for note in judged.notes:
         click.echo(f"  note: {note}")
