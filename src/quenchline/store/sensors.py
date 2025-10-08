@@ -24,6 +24,7 @@ from ..sensors.usage import UsageEvent, UsageLedger
 from ..temperature import Scale, Temperature, TemperatureDelta
 from ..timespan import Duration
 from .database import Database
+from .keys import sensor_key as _key
 
 
 class CertificateRepository:
@@ -99,15 +100,6 @@ class CertificateRepository:
     def count(self) -> int:
         row = self.database.one("SELECT COUNT(*) AS n FROM certificate")
         return int(row["n"]) if row is not None else 0
-
-
-def _key(tag: SensorTag | str) -> str:
-    """Canonical text for a tag, however it was written.
-
-    ``TC-01`` and ``TC-00001`` are the same couple, and a caller typing the
-    short form at a command line should not silently miss the record.
-    """
-    return str(tag if isinstance(tag, SensorTag) else SensorTag.parse(tag))
 
 
 class SensorRepository:

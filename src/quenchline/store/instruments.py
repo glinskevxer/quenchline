@@ -23,10 +23,7 @@ from ..instruments.register import InstrumentRegister
 from ..instruments.types import Accuracy, InstrumentClass, InstrumentFunction, Readout, Span
 from ..temperature import Scale, Temperature, TemperatureDelta
 from .database import Database
-
-
-def _key(tag: InstrumentTag | str) -> str:
-    return str(tag if isinstance(tag, InstrumentTag) else InstrumentTag.parse(tag))
+from .keys import instrument_key as _key
 
 
 class InstrumentRepository:

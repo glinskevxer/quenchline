@@ -22,11 +22,8 @@ from ..measure import Volume
 from ..sensors.record import SensorRole
 from ..temperature import Temperature
 from .database import Database
-
-
-def _key(tag: FurnaceTag | str) -> str:
-    """Canonical text for a furnace tag, however it was written."""
-    return str(tag if isinstance(tag, FurnaceTag) else FurnaceTag.parse(tag))
+from .keys import furnace_key as _key
+from .keys import sensor_key
 
 
 class FurnaceRepository:
@@ -173,7 +170,7 @@ class FurnaceRepository:
 
     def wired_to(self, sensor: SensorTag | str) -> str | None:
         """Which furnace a sensor is wired to, if any."""
-        key = str(sensor if isinstance(sensor, SensorTag) else SensorTag.parse(sensor))
+        key = sensor_key(sensor)
         row = self.database.one(
             "SELECT furnace_tag FROM furnace_sensor WHERE sensor_tag = ?", (key,)
         )

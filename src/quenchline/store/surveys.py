@@ -19,6 +19,7 @@ from ..identity import FurnaceTag
 from ..temperature import Temperature
 from ..tus.history import SurveyHistory, SurveyOutcome
 from .database import Database
+from .keys import furnace_key
 
 
 class SurveyRepository:
@@ -82,11 +83,10 @@ class SurveyRepository:
         return [(row["furnace_tag"], row["zone"]) for row in rows]
 
     def for_zone(self, furnace: FurnaceTag | str, zone: str) -> list[SurveyOutcome]:
-        tag = furnace if isinstance(furnace, FurnaceTag) else FurnaceTag.parse(furnace)
         rows = self.database.query(
             "SELECT * FROM survey_outcome WHERE furnace_tag = ? AND zone = ? "
             "ORDER BY performed, number",
-            (str(tag), zone),
+            (furnace_key(furnace), zone),
         )
         return [self._build(row) for row in rows]
 

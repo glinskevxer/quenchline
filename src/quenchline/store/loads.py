@@ -20,11 +20,8 @@ from ..identity import FurnaceTag, LotNumber, WorkOrder
 from ..loads.record import Load, LoadState, PartLine
 from ..measure import Mass
 from .database import Database
-
-
-def _key(lot: LotNumber | str) -> str:
-    """Canonical text for a lot number, however it was written."""
-    return str(lot if isinstance(lot, LotNumber) else LotNumber.parse(lot))
+from .keys import furnace_key, work_order_key
+from .keys import lot_key as _key
 
 
 class LoadRepository:
@@ -127,17 +124,16 @@ class LoadRepository:
         return [self.get(row["lot"]) for row in rows]
 
     def on_furnace(self, furnace: FurnaceTag | str) -> list[Load]:
-        tag = furnace if isinstance(furnace, FurnaceTag) else FurnaceTag.parse(furnace)
         rows = self.database.query(
-            "SELECT lot FROM load_record WHERE furnace_tag = ? ORDER BY lot", (str(tag),)
+            "SELECT lot FROM load_record WHERE furnace_tag = ? ORDER BY lot",
+            (furnace_key(furnace),),
         )
         return [self.get(row["lot"]) for row in rows]
 
     def for_work_order(self, work_order: WorkOrder | str) -> list[Load]:
-        order = work_order if isinstance(work_order, WorkOrder) else WorkOrder.parse(work_order)
         rows = self.database.query(
             "SELECT lot FROM load_record WHERE work_order = ? ORDER BY lot",
-            (str(order),),
+            (work_order_key(work_order),),
         )
         return [self.get(row["lot"]) for row in rows]
 

@@ -21,6 +21,7 @@ from ..sat.model import SatMethod, SatReading, SatTest
 from ..sat.schedule import SatHistory
 from ..temperature import Scale, Temperature, TemperatureDelta
 from .database import Database
+from .keys import furnace_key
 
 
 def _tag(value: str | None) -> SensorTag | None:
@@ -89,10 +90,9 @@ class SatRepository:
         return self._build(row)
 
     def for_furnace(self, furnace: FurnaceTag | str) -> list[SatTest]:
-        tag = furnace if isinstance(furnace, FurnaceTag) else FurnaceTag.parse(furnace)
         rows = self.database.query(
             "SELECT * FROM sat_test WHERE furnace_tag = ? ORDER BY performed, number",
-            (str(tag),),
+            (furnace_key(furnace),),
         )
         return [self._build(row) for row in rows]
 
