@@ -332,3 +332,43 @@ def test_the_concession_policy_changes_the_disposition(
     run_with(cli, tmp_path, SHORT_CYCLE)
     strict = cli("load", "evaluate", "L25-0001", "--no-concession", "--rework-limit", "0")
     assert "review" in strict.output
+
+
+def test_grading_is_stored_and_reported(cli: Callable[..., Result], tmp_path: Path) -> None:
+    write_recipe(cli)
+    run_with(cli, tmp_path, SHORT_CYCLE)
+    result = cli("report", "deviations")
+    assert "graded runs       1" in result.output
+    assert "short_soak" in result.output
+
+
+def test_the_deviation_report_can_group_by_furnace(
+    cli: Callable[..., Result], tmp_path: Path
+) -> None:
+    write_recipe(cli)
+    run_with(cli, tmp_path, SHORT_CYCLE)
+    result = cli("report", "deviations", "--furnace")
+    assert "findings by furnace" in result.output
+    assert "HT-04" in result.output
+
+
+def test_an_ungraded_load_is_listed_as_waiting(
+    cli: Callable[..., Result], tmp_path: Path
+) -> None:
+    write_recipe(cli)
+    plan(cli)
+    cli("load", "charge", "L25-0001")
+    cli("load", "start", "L25-0001", "--at", "2025-04-01T07:00:00")
+    path = tmp_path / "run.csv"
+    path.write_text(GOOD_CYCLE)
+    cli("load", "attach", "L25-0001", str(path), "--profile", "eurotherm 6100")
+    cli("load", "finish", "L25-0001", "--at", "2025-04-01T12:00:00")
+    result = cli("report", "deviations")
+    assert "awaiting grading  1" in result.output
+    assert "nothing has been graded yet" in result.output
+
+
+def test_grading_is_audited(cli: Callable[..., Result], tmp_path: Path) -> None:
+    write_recipe(cli)
+    run_with(cli, tmp_path, GOOD_CYCLE)
+    assert "graded" in cli("audit", "against", "load", "L25-0001").output

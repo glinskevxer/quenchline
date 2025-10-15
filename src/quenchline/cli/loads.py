@@ -287,6 +287,14 @@ def evaluate_load(
         ),
     )
 
+    shop.grading.record(record, findings, decision, context.today)
+    shop.audit.record(
+        "graded",
+        "load",
+        str(record.lot),
+        detail=f"{decision.disposition.value}, {len(findings)} finding(s)",
+    )
+
     click.echo(run_summary(record, findings, decision))
     click.echo("")
     click.echo(segment_table(segments).render())

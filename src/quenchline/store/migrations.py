@@ -411,6 +411,34 @@ MIGRATIONS: tuple[Migration, ...] = (
             "CREATE INDEX survey_by_zone ON survey_outcome(furnace_tag, zone, performed)",
         ),
     ),
+    Migration(
+        15,
+        "graded runs",
+        (
+            """
+            CREATE TABLE graded_run (
+                lot TEXT PRIMARY KEY REFERENCES load_record(lot) ON DELETE CASCADE,
+                graded_on TEXT NOT NULL,
+                recipe_code TEXT NOT NULL,
+                recipe_revision TEXT NOT NULL,
+                disposition TEXT NOT NULL,
+                reason TEXT NOT NULL DEFAULT ''
+            )
+            """,
+            """
+            CREATE TABLE graded_finding (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lot TEXT NOT NULL REFERENCES graded_run(lot) ON DELETE CASCADE,
+                kind TEXT NOT NULL,
+                step TEXT NOT NULL,
+                severity TEXT NOT NULL,
+                detail TEXT NOT NULL DEFAULT ''
+            )
+            """,
+            "CREATE INDEX finding_by_lot ON graded_finding(lot)",
+            "CREATE INDEX finding_by_kind ON graded_finding(kind, severity)",
+        ),
+    ),
 )
 
 

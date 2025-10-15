@@ -10,6 +10,7 @@ from ..errors import ValidationError
 from ..report.certificate import CertificateHeader, certificate_text
 from ..report.compliance import assess, summary_header, summary_table
 from ..report.kpi import Period, comparison_table, rollup, rollup_block
+from ..report.table import Align, Column, Table, render_kv
 from ..schedule.board import Board, board_summary, board_table
 from .context import Context, parse_day
 from .registers import board as build_board
@@ -92,6 +93,44 @@ def throughput(context: Context, start: str, end: str) -> None:
     click.echo(f"{len(certified)} certified load(s) between {first} and {last}")
     for record in certified:
         click.echo(f"  {record.lot} on {record.furnace} to {record.recipe}")
+
+
+@report_group.command("deviations")
+@click.option("--furnace", "by_furnace", is_flag=True, help="group by furnace instead")
+@click.pass_obj
+def deviations(context: Context, by_furnace: bool) -> None:
+    """What the shop keeps getting wrong, commonest first."""
+    shop = context.shop()
+    counts = shop.grading.counts_by_furnace() if by_furnace else shop.grading.counts_by_kind()
+    waiting = shop.grading.ungraded()
+    click.echo(
+        render_kv(
+            [
+                ("graded runs", shop.grading.count()),
+                ("findings", shop.grading.finding_count()),
+                ("awaiting grading", len(waiting)),
+            ],
+            title="deviations",
+        )
+    )
+    if not counts:
+        click.echo("")
+        click.echo("nothing has been graded yet")
+        return
+    table = Table(
+        columns=[
+            Column("furnace" if by_furnace else "deviation"),
+            Column("count", align=Align.RIGHT),
+        ],
+        title="findings by furnace" if by_furnace else "findings by kind",
+    )
+    for name, count in counts.items():
+        table.add(name, count)
+    click.echo("")
+    click.echo(table.render())
+    if waiting:
+        click.echo("")
+        click.echo("awaiting grading: " + ", ".join(waiting))
 
 
 @report_group.command("certificate")

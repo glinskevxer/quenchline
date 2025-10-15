@@ -26,6 +26,7 @@ from ..nonconformance.record import Nonconformance
 from .audit import AuditTrail
 from .database import Database
 from .furnaces import FurnaceRepository
+from .grading import GradingRepository
 from .instruments import InstrumentRepository
 from .loads import LoadRepository
 from .nonconformance import NcrRepository
@@ -51,6 +52,7 @@ class Shop:
     instruments: InstrumentRepository
     audit: AuditTrail
     surveys: SurveyRepository
+    grading: GradingRepository
 
     @classmethod
     def open(cls, path: Path | str) -> Shop:
@@ -75,6 +77,7 @@ class Shop:
             InstrumentRepository(database),
             AuditTrail(database),
             SurveyRepository(database),
+            GradingRepository(database),
         )
 
     def close(self) -> None:
@@ -134,6 +137,7 @@ class Shop:
             "instruments": self.instruments.count(),
             "audit entries": self.audit.count(),
             "surveys": self.surveys.count(),
+            "graded runs": self.grading.count(),
         }
 
     def open_ncr_count(self) -> int:
