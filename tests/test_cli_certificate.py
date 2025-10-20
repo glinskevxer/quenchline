@@ -159,14 +159,31 @@ def test_the_module_entry_point_runs() -> None:
 
 
 def test_running_the_module_prints_help() -> None:
+    """``python -m quenchline`` works however the suite itself was started.
+
+    The subprocess gets an explicit import path built from where the package
+    actually is, rather than inheriting whatever the parent happened to have.
+    Without that this passes under one invocation and fails under another, which
+    is the least useful kind of test.
+    """
+    import os
     import subprocess
     import sys
 
+    import quenchline
+
+    package_root = str(Path(quenchline.__file__).resolve().parent.parent)
+    environment = dict(os.environ)
+    existing = environment.get("PYTHONPATH", "")
+    environment["PYTHONPATH"] = (
+        f"{package_root}{os.pathsep}{existing}" if existing else package_root
+    )
     finished = subprocess.run(
         [sys.executable, "-m", "quenchline", "--help"],
         capture_output=True,
         text=True,
         check=False,
+        env=environment,
     )
-    assert finished.returncode == 0
+    assert finished.returncode == 0, finished.stderr
     assert "furnace" in finished.stdout

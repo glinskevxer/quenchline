@@ -143,3 +143,22 @@ def test_surviving_keys_drops_both_kinds_of_loss() -> None:
 def test_report_text_reports_the_counts() -> None:
     survey, data = build(ELEVEN, (scan(0, list(range(1, 12))), scan(40, list(range(1, 10)))))
     assert "2 lost of an allowed 1" in str(find_dropouts(survey, data))
+
+
+def test_a_reading_from_a_sensor_the_survey_never_placed_is_ignored() -> None:
+    survey, data = build(
+        ELEVEN,
+        (
+            Scan.of(
+                minutes(0),
+                {
+                    **{key(s): Temperature.fahrenheit(1550.0) for s in range(1, 12)},
+                    "TC-99999": Temperature.fahrenheit(1550.0),
+                },
+            ),
+            scan(40, list(range(1, 12))),
+        ),
+    )
+    report = find_dropouts(survey, data)
+    assert report.lost == 0
+    assert report.never_read == ()

@@ -219,3 +219,13 @@ def test_clamped_refuses_inverted_limits() -> None:
         Temperature.fahrenheit(1550).clamped(
             Temperature.fahrenheit(1600), Temperature.fahrenheit(1500)
         )
+
+
+def test_str_is_the_zero_place_format() -> None:
+    assert str(Temperature.fahrenheit(1550.4)) == "1550 F"
+    assert str(Temperature.celsius(-40)) == "-40 C"
+
+
+def test_rounding_a_negative_temperature_goes_away_from_zero() -> None:
+    assert round_temperature(Temperature.celsius(-40.5)).value == pytest.approx(-41.0)
+    assert round_temperature(Temperature.celsius(-40.4)).value == pytest.approx(-40.0)

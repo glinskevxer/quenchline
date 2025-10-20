@@ -152,3 +152,9 @@ def test_a_lopsided_pair_of_limits_still_centres_the_setpoint() -> None:
 def test_inverted_limits_are_refused() -> None:
     with pytest.raises(ValidationError):
         Band.from_limits(Temperature.fahrenheit(1575), Temperature.fahrenheit(1525))
+
+
+def test_str_is_the_default_format() -> None:
+    band = Band.symmetric(SETPOINT, degf(25))
+    assert str(band) == band.format()
+    assert str(Band(SETPOINT, degf(0), degf(25))) == "1550 F +25 -0"
