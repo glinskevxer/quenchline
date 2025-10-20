@@ -110,3 +110,31 @@ def test_the_first_migration_creates_the_furnace_table() -> None:
 def test_the_load_migration_indexes_by_furnace() -> None:
     statements = " ".join(find(4).statements)
     assert "CREATE INDEX load_by_furnace" in statements
+
+
+def test_every_shipped_migration_names_something_it_creates() -> None:
+    for migration in MIGRATIONS:
+        statements = " ".join(migration.statements).upper()
+        assert "CREATE" in statements or "ALTER" in statements, migration.name
+
+
+def test_no_shipped_migration_drops_a_table() -> None:
+    """Migrations are append only, so nothing here should be losing data."""
+    for migration in MIGRATIONS:
+        statements = " ".join(migration.statements).upper()
+        assert "DROP TABLE" not in statements, migration.name
+
+
+def test_every_index_names_the_table_it_is_on() -> None:
+    for migration in MIGRATIONS:
+        for statement in migration.statements:
+            if "CREATE INDEX" not in statement:
+                continue
+            assert " ON " in statement, statement
+
+
+def test_the_migration_names_read_as_a_history() -> None:
+    names = [m.name for m in MIGRATIONS]
+    assert names[0] == "furnaces and zones"
+    assert all(name.islower() for name in names)
+    assert all(name.strip() == name for name in names)

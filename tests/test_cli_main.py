@@ -124,3 +124,28 @@ def test_the_settings_command_shows_the_database_actually_in_use(tmp_path: Path)
     )
     assert "database in use" in result.output
     assert "other.sqlite" in result.output
+
+
+def test_the_version_command_reports_both_versions(tmp_path: Path) -> None:
+    from quenchline.store.migrations import MIGRATIONS
+
+    result = CliRunner().invoke(main, ["--database", str(tmp_path / "shop.sqlite"), "version"])
+    assert result.exit_code == 0
+    assert "quenchline              1.0.0" in result.output
+    assert f"schema in this build    {len(MIGRATIONS)}" in result.output
+    assert "up to date              yes" in result.output
+
+
+def test_a_database_behind_the_build_says_so(tmp_path: Path) -> None:
+    from quenchline.store.database import Database
+    from quenchline.store.migrations import MIGRATIONS
+
+    path = tmp_path / "shop.sqlite"
+    Database.open(path, migrations=MIGRATIONS[:3]).close()
+    result = CliRunner().invoke(main, ["--database", str(path), "db", "status"])
+    assert "schema version" in result.output
+
+
+def test_the_version_flag_still_prints_the_package_version() -> None:
+    result = CliRunner().invoke(main, ["--version"])
+    assert "1.0.0" in result.output

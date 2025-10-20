@@ -6,7 +6,7 @@ import quenchline
 
 
 def test_version_is_exported() -> None:
-    assert quenchline.__version__ == "0.1.0"
+    assert quenchline.__version__ == "1.0.0"
 
 
 def test_every_name_in_all_actually_resolves() -> None:

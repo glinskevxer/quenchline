@@ -126,6 +126,14 @@ class Database:
             if migration.checksum != row.checksum:
                 raise ChecksumMismatch(row.version, migration.checksum, row.checksum)
 
+    def pending(self, migrations: tuple[Migration, ...] = MIGRATIONS) -> list[Migration]:
+        """Migrations this file has not seen yet, in the order they will run."""
+        done = {row.version for row in self.applied()}
+        return [m for m in migrations if m.version not in done]
+
+    def is_current(self, migrations: tuple[Migration, ...] = MIGRATIONS) -> bool:
+        return not self.pending(migrations)
+
     def migrate(self, migrations: tuple[Migration, ...] = MIGRATIONS) -> list[Migration]:
         """Apply everything the database has not seen. Returns what it ran."""
         done = {row.version for row in self.applied()}

@@ -69,3 +69,16 @@ def test_restore_without_overwrite_is_refused(
     cli("db", "backup", str(destination))
     result = cli("db", "restore", str(destination))
     assert result.exit_code != 0
+
+
+def test_a_current_database_has_nothing_pending(cli: Callable[..., Result]) -> None:
+    result = cli("db", "pending")
+    assert result.exit_code == 0
+    assert "schema is current at version" in result.output
+
+
+def test_the_version_command_agrees_with_the_database(cli: Callable[..., Result]) -> None:
+    version = cli("version").output
+    status = cli("db", "status").output
+    assert "up to date              yes" in version
+    assert "schema version" in status

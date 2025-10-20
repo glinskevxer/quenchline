@@ -57,6 +57,24 @@ def migrations(context: Context) -> None:
     click.echo(table.render())
 
 
+@db_group.command("pending")
+@click.pass_obj
+def pending(context: Context) -> None:
+    """Migrations this file has not had applied yet."""
+    database = context.shop().database
+    waiting = database.pending()
+    if not waiting:
+        click.echo(f"schema is current at version {database.version}")
+        return
+    table = Table(
+        columns=[Column("version", align=Align.RIGHT), Column("name")],
+        title="pending migrations",
+    )
+    for migration in waiting:
+        table.add(migration.version, migration.name)
+    click.echo(table.render())
+
+
 @db_group.command("counts")
 @click.pass_obj
 def counts(context: Context) -> None:

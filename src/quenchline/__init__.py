@@ -19,7 +19,7 @@ from .temperature import Scale, Temperature, TemperatureDelta, degc, degf, round
 from .timespan import Duration, hours, minutes
 from .tolerance import Band, Position
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 __all__ = [
     "Band",

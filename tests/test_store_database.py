@@ -156,3 +156,24 @@ def test_require_table() -> None:
         require_table(database, "alpha")
         with pytest.raises(ValidationError):
             require_table(database, "gamma")
+
+
+def test_a_new_database_has_nothing_pending() -> None:
+    with Database.in_memory() as database:
+        assert database.pending() == []
+        assert database.is_current()
+
+
+def test_pending_lists_what_has_not_run(tmp_path: Path) -> None:
+    path = tmp_path / "shop.sqlite"
+    Database.open(path, migrations=SMALL[:1]).close()
+    with Database.open(path, migrations=SMALL[:1], migrate=False) as database:
+        waiting = database.pending(SMALL)
+        assert [m.version for m in waiting] == [2]
+        assert not database.is_current(SMALL)
+
+
+def test_pending_is_in_the_order_they_will_run(tmp_path: Path) -> None:
+    path = tmp_path / "shop.sqlite"
+    with Database.open(path, migrations=SMALL, migrate=False) as database:
+        assert [m.version for m in database.pending(SMALL)] == [1, 2]

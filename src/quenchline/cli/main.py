@@ -124,6 +124,29 @@ main.add_command(sensor_group)
 main.add_command(survey_group)
 
 
+@main.command("version")
+@click.pass_obj
+def show_version(context: Context) -> None:
+    """Print the package version and the schema version of this database."""
+    from ..report.table import render_kv
+    from ..store.migrations import MIGRATIONS
+
+    shop = context.shop()
+    applied = shop.database.applied()
+    click.echo(
+        render_kv(
+            [
+                ("quenchline", __version__),
+                ("schema in this build", len(MIGRATIONS)),
+                ("schema in the database", shop.database.version),
+                ("last migration", applied[-1].name if applied else None),
+                ("up to date", "yes" if shop.database.version == len(MIGRATIONS) else "no"),
+            ],
+            title="version",
+        )
+    )
+
+
 @main.command("settings")
 @click.pass_obj
 def show_settings(context: Context) -> None:

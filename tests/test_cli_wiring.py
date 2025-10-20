@@ -43,7 +43,7 @@ def test_every_expected_group_is_wired() -> None:
 
 
 def test_nothing_unexpected_is_wired() -> None:
-    extra = command_names() - EXPECTED_GROUPS - {"settings"}
+    extra = command_names() - EXPECTED_GROUPS - {"settings", "version"}
     assert not extra, f"wired but not expected: {sorted(extra)}"
 
 
